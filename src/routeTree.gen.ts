@@ -15,8 +15,11 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as AuthenticatedAppAnotacoesRouteImport } from './routes/_authenticated/app.anotacoes'
+import { Route as AuthenticatedAppChatRouteImport } from './routes/_authenticated/app.chat'
 import { Route as AuthenticatedAppFinanceiroRouteImport } from './routes/_authenticated/app.financeiro'
 import { Route as AuthenticatedAppProjetosRouteImport } from './routes/_authenticated/app.projetos'
+import { Route as AuthenticatedAppSuporteRouteImport } from './routes/_authenticated/app.suporte'
 import { Route as ApiPublicJobsUptimeRouteImport } from './routes/api/public/jobs/uptime'
 
 const IndexRoute = IndexRouteImport.update({
@@ -48,6 +51,17 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppAnotacoesRoute =
+  AuthenticatedAppAnotacoesRouteImport.update({
+    id: '/anotacoes',
+    path: '/anotacoes',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppChatRoute = AuthenticatedAppChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppFinanceiroRoute =
   AuthenticatedAppFinanceiroRouteImport.update({
     id: '/financeiro',
@@ -60,6 +74,11 @@ const AuthenticatedAppProjetosRoute =
     path: '/projetos',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppSuporteRoute = AuthenticatedAppSuporteRouteImport.update({
+  id: '/suporte',
+  path: '/suporte',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const ApiPublicJobsUptimeRoute = ApiPublicJobsUptimeRouteImport.update({
   id: '/api/public/jobs/uptime',
   path: '/api/public/jobs/uptime',
@@ -71,8 +90,11 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
+  '/app/anotacoes': typeof AuthenticatedAppAnotacoesRoute
+  '/app/chat': typeof AuthenticatedAppChatRoute
   '/app/financeiro': typeof AuthenticatedAppFinanceiroRoute
   '/app/projetos': typeof AuthenticatedAppProjetosRoute
+  '/app/suporte': typeof AuthenticatedAppSuporteRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/jobs/uptime': typeof ApiPublicJobsUptimeRoute
 }
@@ -80,8 +102,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/app/anotacoes': typeof AuthenticatedAppAnotacoesRoute
+  '/app/chat': typeof AuthenticatedAppChatRoute
   '/app/financeiro': typeof AuthenticatedAppFinanceiroRoute
   '/app/projetos': typeof AuthenticatedAppProjetosRoute
+  '/app/suporte': typeof AuthenticatedAppSuporteRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/api/public/jobs/uptime': typeof ApiPublicJobsUptimeRoute
 }
@@ -92,8 +117,11 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/_authenticated/app/anotacoes': typeof AuthenticatedAppAnotacoesRoute
+  '/_authenticated/app/chat': typeof AuthenticatedAppChatRoute
   '/_authenticated/app/financeiro': typeof AuthenticatedAppFinanceiroRoute
   '/_authenticated/app/projetos': typeof AuthenticatedAppProjetosRoute
+  '/_authenticated/app/suporte': typeof AuthenticatedAppSuporteRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/jobs/uptime': typeof ApiPublicJobsUptimeRoute
 }
@@ -104,8 +132,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/app'
+    | '/app/anotacoes'
+    | '/app/chat'
     | '/app/financeiro'
     | '/app/projetos'
+    | '/app/suporte'
     | '/app/'
     | '/api/public/jobs/uptime'
   fileRoutesByTo: FileRoutesByTo
@@ -113,8 +144,11 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/app/anotacoes'
+    | '/app/chat'
     | '/app/financeiro'
     | '/app/projetos'
+    | '/app/suporte'
     | '/app'
     | '/api/public/jobs/uptime'
   id:
@@ -124,8 +158,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/app'
+    | '/_authenticated/app/anotacoes'
+    | '/_authenticated/app/chat'
     | '/_authenticated/app/financeiro'
     | '/_authenticated/app/projetos'
+    | '/_authenticated/app/suporte'
     | '/_authenticated/app/'
     | '/api/public/jobs/uptime'
   fileRoutesById: FileRoutesById
@@ -182,6 +219,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/anotacoes': {
+      id: '/_authenticated/app/anotacoes'
+      path: '/anotacoes'
+      fullPath: '/app/anotacoes'
+      preLoaderRoute: typeof AuthenticatedAppAnotacoesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/chat': {
+      id: '/_authenticated/app/chat'
+      path: '/chat'
+      fullPath: '/app/chat'
+      preLoaderRoute: typeof AuthenticatedAppChatRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/financeiro': {
       id: '/_authenticated/app/financeiro'
       path: '/financeiro'
@@ -196,6 +247,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppProjetosRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/suporte': {
+      id: '/_authenticated/app/suporte'
+      path: '/suporte'
+      fullPath: '/app/suporte'
+      preLoaderRoute: typeof AuthenticatedAppSuporteRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/api/public/jobs/uptime': {
       id: '/api/public/jobs/uptime'
       path: '/api/public/jobs/uptime'
@@ -207,14 +265,20 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppAnotacoesRoute: typeof AuthenticatedAppAnotacoesRoute
+  AuthenticatedAppChatRoute: typeof AuthenticatedAppChatRoute
   AuthenticatedAppFinanceiroRoute: typeof AuthenticatedAppFinanceiroRoute
   AuthenticatedAppProjetosRoute: typeof AuthenticatedAppProjetosRoute
+  AuthenticatedAppSuporteRoute: typeof AuthenticatedAppSuporteRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppAnotacoesRoute: AuthenticatedAppAnotacoesRoute,
+  AuthenticatedAppChatRoute: AuthenticatedAppChatRoute,
   AuthenticatedAppFinanceiroRoute: AuthenticatedAppFinanceiroRoute,
   AuthenticatedAppProjetosRoute: AuthenticatedAppProjetosRoute,
+  AuthenticatedAppSuporteRoute: AuthenticatedAppSuporteRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
 }
 
