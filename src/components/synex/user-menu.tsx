@@ -61,7 +61,7 @@ function ProfileBody({ me }: { me: Me }) {
 
   async function save(patch: Record<string, unknown>) {
     setSaving(true);
-    const { error } = await supabase.from("profiles").update(patch).eq("id", me.id);
+    const { error } = await supabase.from("profiles").update(patch as never).eq("id", me.id);
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Perfil atualizado");

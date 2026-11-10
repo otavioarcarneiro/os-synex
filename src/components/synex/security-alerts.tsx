@@ -20,7 +20,7 @@ export function SecurityAlerts() {
   const [open, setOpen] = useState<Alert | null>(null);
   const [releasing, setReleasing] = useState(false);
   if (!alerts.length) return null;
-  const a = alerts[0];
+  const a = alerts[0]!;
   const fmt = (d: string) => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const wa = (a.phone ?? "").replace(/\D/g, "");
   return (

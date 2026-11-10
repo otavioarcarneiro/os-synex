@@ -78,7 +78,7 @@ function Toggles() {
   const qc = useQueryClient();
   const { data: s } = useQuery({ queryKey: ["settings"], queryFn: async () => (await supabase.from("system_settings").select("maintenance_mode, billing_enabled, uptime_enabled").eq("id", 1).single()).data });
   const set = async (k: string, v: boolean) => {
-    const { error } = await supabase.from("system_settings").update({ [k]: v, updated_at: new Date().toISOString() }).eq("id", 1);
+    const { error } = await supabase.from("system_settings").update({ [k]: v, updated_at: new Date().toISOString() } as never).eq("id", 1);
     if (error) return err(error); qc.invalidateQueries({ queryKey: ["settings"] }); toast.success("Configuração salva");
   };
   const rows = [

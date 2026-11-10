@@ -59,20 +59,20 @@ export const userAction = createServerFn({ method: "POST" })
       await supabaseAdmin.from("profiles").update({ status, deleted_at: status === "deleted" ? new Date().toISOString() : null }).eq("id", data.targetId);
       await supabaseAdmin.auth.admin.updateUserById(data.targetId, { ban_duration: "876000h" });
       await supabaseAdmin.from("active_sessions").delete().eq("user_id", data.targetId);
-      payload.new = { status };
+      payload["new"] = { status };
     } else if (data.action === "reactivate") {
       await supabaseAdmin.from("profiles").update({ status: "active", deleted_at: null }).eq("id", data.targetId);
       await supabaseAdmin.auth.admin.updateUserById(data.targetId, { ban_duration: "none" });
-      payload.new = { status: "active" };
+      payload["new"] = { status: "active" };
     } else if (data.action === "role_change") {
       if (!data.role) throw new Error("Selecione o novo papel");
       await supabaseAdmin.from("user_roles").delete().eq("user_id", data.targetId);
       await supabaseAdmin.from("user_roles").insert({ user_id: data.targetId, role: data.role });
       await supabaseAdmin.from("profiles").update({ department: data.role === "admin" ? data.department ?? null : null }).eq("id", data.targetId);
-      payload.new = { role: data.role, department: data.department ?? null };
+      payload["new"] = { role: data.role, department: data.department ?? null };
     } else {
       await supabaseAdmin.from("active_sessions").delete().eq("user_id", data.targetId);
-      payload.new = { sessions: "revoked" };
+      payload["new"] = { sessions: "revoked" };
     }
     await supabaseAdmin.from("audit_logs").insert({ actor_id: context.userId, target_id: data.targetId, action: data.action, reason: data.reason, payload: payload as never });
     return { ok: true };
