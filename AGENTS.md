@@ -28,3 +28,4 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+- Each server-only helper lives in *.server.ts; privileged actions go through createServerFn in src/lib/*.functions.ts with an owner role check (keeps admin client off the browser).
