@@ -22,22 +22,44 @@ export const sendSupportMessage = createServerFn({ method: "POST" })
     }
     if (ticket.status !== "ai") return { ok: true };
     const { data: history } = await supabaseAdmin.from("support_messages").select("role, body").eq("ticket_id", ticket.id).order("created_at").limit(30);
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const key = process.env["LOVABLE_API_KEY"]!;
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
       method: "POST",
-      headers: { Authorization: `Bearer ${process.env["LOVABLE_API_KEY"]}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${key}`, "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "fetch", "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [{ role: "system", content: SYSTEM }, ...(history ?? []).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.body }))],
+        model: "openai/gpt-6-astra",
+        instructions: SYSTEM,
+        input: (history ?? []).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.body })),
+        reasoning: { effort: "low" },
+        store: false,
+        stream: true,
       }),
     });
-    if (!res.ok) {
+    if (!res.ok || !res.body) {
       const t = await res.text();
       console.error(`AI gateway [${res.status}]: ${t}`);
       await supabaseAdmin.from("support_messages").insert({ ticket_id: ticket.id, role: "assistant", body: "Não consegui responder agora. Clique em \"Falar com o Otávio\" para atendimento humano." });
       return { ok: false };
     }
-    const json = await res.json();
-    let reply: string = json.choices?.[0]?.message?.content ?? "";
+    let reply = "";
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        try {
+          const ev = JSON.parse(line.slice(5).trim());
+          if (ev.type === "response.output_text.delta") reply += ev.delta;
+        } catch { /* ignore keepalives */ }
+      }
+    }
+    reply = reply.trim();
     if (reply.startsWith("[HUMANO]")) {
       reply = reply.replace("[HUMANO]", "").trim();
       await supabaseAdmin.from("support_tickets").update({ status: "human" }).eq("id", ticket.id);
