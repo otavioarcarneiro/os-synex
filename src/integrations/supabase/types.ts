@@ -1,0 +1,664 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.18"
+  }
+  public: {
+    Tables: {
+      active_sessions: {
+        Row: {
+          browser: string | null
+          created_at: string
+          device: string | null
+          id: string
+          ip: string | null
+          last_seen: string
+          os: string | null
+          session_key: string
+          user_id: string
+        }
+        Insert: {
+          browser?: string | null
+          created_at?: string
+          device?: string | null
+          id?: string
+          ip?: string | null
+          last_seen?: string
+          os?: string | null
+          session_key: string
+          user_id: string
+        }
+        Update: {
+          browser?: string | null
+          created_at?: string
+          device?: string | null
+          id?: string
+          ip?: string | null
+          last_seen?: string
+          os?: string | null
+          session_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          payload: Json
+          reason: string
+          target_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json
+          reason: string
+          target_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json
+          reason?: string
+          target_id?: string | null
+        }
+        Relationships: []
+      }
+      chat_channels: {
+        Row: {
+          announcement_only: boolean
+          frozen: boolean
+          name: string
+          slug: string
+        }
+        Insert: {
+          announcement_only?: boolean
+          frozen?: boolean
+          name: string
+          slug: string
+        }
+        Update: {
+          announcement_only?: boolean
+          frozen?: boolean
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          paid_at: string | null
+          project_id: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          paid_at?: string | null
+          project_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          paid_at?: string | null
+          project_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      login_security: {
+        Row: {
+          admin_locked: boolean
+          email: string
+          failed_count: number
+          locked_until: string | null
+          updated_at: string
+        }
+        Insert: {
+          admin_locked?: boolean
+          email: string
+          failed_count?: number
+          locked_until?: string | null
+          updated_at?: string
+        }
+        Update: {
+          admin_locked?: boolean
+          email?: string
+          failed_count?: number
+          locked_until?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          body: string
+          channel: string
+          created_at: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          channel: string
+          created_at?: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
+      notes: {
+        Row: {
+          author_id: string
+          contact: string | null
+          content: string
+          created_at: string
+          id: string
+          kind: string
+          title: string
+        }
+        Insert: {
+          author_id?: string
+          contact?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          title: string
+        }
+        Update: {
+          author_id?: string
+          contact?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          deleted_at: string | null
+          department: Database["public"]["Enums"]["department"] | null
+          email: string
+          full_name: string
+          id: string
+          phone: string | null
+          status: Database["public"]["Enums"]["account_status"]
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          department?: Database["public"]["Enums"]["department"] | null
+          email: string
+          full_name?: string
+          id: string
+          phone?: string | null
+          status?: Database["public"]["Enums"]["account_status"]
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          department?: Database["public"]["Enums"]["department"] | null
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          status?: Database["public"]["Enums"]["account_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      project_documents: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          project_id: string
+          title: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          project_id: string
+          title: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          project_id?: string
+          title?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          billing_enabled: boolean
+          client_id: string
+          contract_start: string
+          created_at: string
+          ga4_property_id: string | null
+          id: string
+          instagram_handle: string | null
+          kind: string
+          name: string
+          publish_status: string
+          setup_price: number
+          uptime_checked_at: string | null
+          uptime_latency_ms: number | null
+          uptime_status: string
+          url: string | null
+        }
+        Insert: {
+          billing_enabled?: boolean
+          client_id: string
+          contract_start?: string
+          created_at?: string
+          ga4_property_id?: string | null
+          id?: string
+          instagram_handle?: string | null
+          kind?: string
+          name: string
+          publish_status?: string
+          setup_price?: number
+          uptime_checked_at?: string | null
+          uptime_latency_ms?: number | null
+          uptime_status?: string
+          url?: string | null
+        }
+        Update: {
+          billing_enabled?: boolean
+          client_id?: string
+          contract_start?: string
+          created_at?: string
+          ga4_property_id?: string | null
+          id?: string
+          instagram_handle?: string | null
+          kind?: string
+          name?: string
+          publish_status?: string
+          setup_price?: number
+          uptime_checked_at?: string | null
+          uptime_latency_ms?: number | null
+          uptime_status?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_alerts: {
+        Row: {
+          attempts: number
+          browser: string | null
+          created_at: string
+          device: string | null
+          email: string
+          full_name: string | null
+          geo: string | null
+          id: string
+          ip: string | null
+          os: string | null
+          phone: string | null
+          resolved: boolean
+          resolved_at: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          attempts?: number
+          browser?: string | null
+          created_at?: string
+          device?: string | null
+          email: string
+          full_name?: string | null
+          geo?: string | null
+          id?: string
+          ip?: string | null
+          os?: string | null
+          phone?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          attempts?: number
+          browser?: string | null
+          created_at?: string
+          device?: string | null
+          email?: string
+          full_name?: string | null
+          geo?: string | null
+          id?: string
+          ip?: string | null
+          os?: string | null
+          phone?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      support_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          role: string
+          ticket_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          role: string
+          ticket_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          role?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          status: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          status?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          billing_enabled: boolean
+          id: number
+          maintenance_mode: boolean
+          master_pin_hash: string | null
+          updated_at: string
+          uptime_enabled: boolean
+        }
+        Insert: {
+          billing_enabled?: boolean
+          id?: number
+          maintenance_mode?: boolean
+          master_pin_hash?: string | null
+          updated_at?: string
+          uptime_enabled?: boolean
+        }
+        Update: {
+          billing_enabled?: boolean
+          id?: number
+          maintenance_mode?: boolean
+          master_pin_hash?: string | null
+          updated_at?: string
+          uptime_enabled?: boolean
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      can_access_channel: {
+        Args: { _channel: string; _uid: string }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_owner_email: { Args: { _email: string }; Returns: boolean }
+      is_staff: { Args: { _user_id: string }; Returns: boolean }
+      user_department: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["department"]
+      }
+    }
+    Enums: {
+      account_status: "active" | "suspended" | "deleted"
+      app_role: "owner" | "partner" | "admin" | "client"
+      department: "juridico" | "execucao"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never) = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      account_status: ["active", "suspended", "deleted"],
+      app_role: ["owner", "partner", "admin", "client"],
+      department: ["juridico", "execucao"],
+    },
+  },
+} as const

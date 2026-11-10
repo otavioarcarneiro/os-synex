@@ -10,33 +10,194 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as AuthenticatedPortalRouteImport } from './routes/_authenticated/portal'
+import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as AuthenticatedAppAnotacoesRouteImport } from './routes/_authenticated/app.anotacoes'
+import { Route as AuthenticatedAppChatRouteImport } from './routes/_authenticated/app.chat'
+import { Route as AuthenticatedAppFinanceiroRouteImport } from './routes/_authenticated/app.financeiro'
+import { Route as AuthenticatedAppProjetosRouteImport } from './routes/_authenticated/app.projetos'
+import { Route as AuthenticatedAppRestritaRouteImport } from './routes/_authenticated/app.restrita'
+import { Route as AuthenticatedAppSuporteRouteImport } from './routes/_authenticated/app.suporte'
+import { Route as ApiPublicJobsUptimeRouteImport } from './routes/api/public/jobs/uptime'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPortalRoute = AuthenticatedPortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppAnotacoesRoute =
+  AuthenticatedAppAnotacoesRouteImport.update({
+    id: '/anotacoes',
+    path: '/anotacoes',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppChatRoute = AuthenticatedAppChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppFinanceiroRoute =
+  AuthenticatedAppFinanceiroRouteImport.update({
+    id: '/financeiro',
+    path: '/financeiro',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppProjetosRoute =
+  AuthenticatedAppProjetosRouteImport.update({
+    id: '/projetos',
+    path: '/projetos',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppRestritaRoute =
+  AuthenticatedAppRestritaRouteImport.update({
+    id: '/restrita',
+    path: '/restrita',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppSuporteRoute = AuthenticatedAppSuporteRouteImport.update({
+  id: '/suporte',
+  path: '/suporte',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const ApiPublicJobsUptimeRoute = ApiPublicJobsUptimeRouteImport.update({
+  id: '/api/public/jobs/uptime',
+  path: '/api/public/jobs/uptime',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/app': typeof AuthenticatedAppRouteWithChildren
+  '/portal': typeof AuthenticatedPortalRoute
+  '/app/anotacoes': typeof AuthenticatedAppAnotacoesRoute
+  '/app/chat': typeof AuthenticatedAppChatRoute
+  '/app/financeiro': typeof AuthenticatedAppFinanceiroRoute
+  '/app/projetos': typeof AuthenticatedAppProjetosRoute
+  '/app/restrita': typeof AuthenticatedAppRestritaRoute
+  '/app/suporte': typeof AuthenticatedAppSuporteRoute
+  '/app/': typeof AuthenticatedAppIndexRoute
+  '/api/public/jobs/uptime': typeof ApiPublicJobsUptimeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/portal': typeof AuthenticatedPortalRoute
+  '/app/anotacoes': typeof AuthenticatedAppAnotacoesRoute
+  '/app/chat': typeof AuthenticatedAppChatRoute
+  '/app/financeiro': typeof AuthenticatedAppFinanceiroRoute
+  '/app/projetos': typeof AuthenticatedAppProjetosRoute
+  '/app/restrita': typeof AuthenticatedAppRestritaRoute
+  '/app/suporte': typeof AuthenticatedAppSuporteRoute
+  '/app': typeof AuthenticatedAppIndexRoute
+  '/api/public/jobs/uptime': typeof ApiPublicJobsUptimeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/_authenticated/portal': typeof AuthenticatedPortalRoute
+  '/_authenticated/app/anotacoes': typeof AuthenticatedAppAnotacoesRoute
+  '/_authenticated/app/chat': typeof AuthenticatedAppChatRoute
+  '/_authenticated/app/financeiro': typeof AuthenticatedAppFinanceiroRoute
+  '/_authenticated/app/projetos': typeof AuthenticatedAppProjetosRoute
+  '/_authenticated/app/restrita': typeof AuthenticatedAppRestritaRoute
+  '/_authenticated/app/suporte': typeof AuthenticatedAppSuporteRoute
+  '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/api/public/jobs/uptime': typeof ApiPublicJobsUptimeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/app'
+    | '/portal'
+    | '/app/anotacoes'
+    | '/app/chat'
+    | '/app/financeiro'
+    | '/app/projetos'
+    | '/app/restrita'
+    | '/app/suporte'
+    | '/app/'
+    | '/api/public/jobs/uptime'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/portal'
+    | '/app/anotacoes'
+    | '/app/chat'
+    | '/app/financeiro'
+    | '/app/projetos'
+    | '/app/restrita'
+    | '/app/suporte'
+    | '/app'
+    | '/api/public/jobs/uptime'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/reset-password'
+    | '/_authenticated/app'
+    | '/_authenticated/portal'
+    | '/_authenticated/app/anotacoes'
+    | '/_authenticated/app/chat'
+    | '/_authenticated/app/financeiro'
+    | '/_authenticated/app/projetos'
+    | '/_authenticated/app/restrita'
+    | '/_authenticated/app/suporte'
+    | '/_authenticated/app/'
+    | '/api/public/jobs/uptime'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicJobsUptimeRoute: typeof ApiPublicJobsUptimeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +209,142 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/app': {
+      id: '/_authenticated/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AuthenticatedAppRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/portal': {
+      id: '/_authenticated/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof AuthenticatedPortalRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/': {
+      id: '/_authenticated/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/anotacoes': {
+      id: '/_authenticated/app/anotacoes'
+      path: '/anotacoes'
+      fullPath: '/app/anotacoes'
+      preLoaderRoute: typeof AuthenticatedAppAnotacoesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/chat': {
+      id: '/_authenticated/app/chat'
+      path: '/chat'
+      fullPath: '/app/chat'
+      preLoaderRoute: typeof AuthenticatedAppChatRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/financeiro': {
+      id: '/_authenticated/app/financeiro'
+      path: '/financeiro'
+      fullPath: '/app/financeiro'
+      preLoaderRoute: typeof AuthenticatedAppFinanceiroRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/projetos': {
+      id: '/_authenticated/app/projetos'
+      path: '/projetos'
+      fullPath: '/app/projetos'
+      preLoaderRoute: typeof AuthenticatedAppProjetosRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/restrita': {
+      id: '/_authenticated/app/restrita'
+      path: '/restrita'
+      fullPath: '/app/restrita'
+      preLoaderRoute: typeof AuthenticatedAppRestritaRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/suporte': {
+      id: '/_authenticated/app/suporte'
+      path: '/suporte'
+      fullPath: '/app/suporte'
+      preLoaderRoute: typeof AuthenticatedAppSuporteRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/api/public/jobs/uptime': {
+      id: '/api/public/jobs/uptime'
+      path: '/api/public/jobs/uptime'
+      fullPath: '/api/public/jobs/uptime'
+      preLoaderRoute: typeof ApiPublicJobsUptimeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppAnotacoesRoute: typeof AuthenticatedAppAnotacoesRoute
+  AuthenticatedAppChatRoute: typeof AuthenticatedAppChatRoute
+  AuthenticatedAppFinanceiroRoute: typeof AuthenticatedAppFinanceiroRoute
+  AuthenticatedAppProjetosRoute: typeof AuthenticatedAppProjetosRoute
+  AuthenticatedAppRestritaRoute: typeof AuthenticatedAppRestritaRoute
+  AuthenticatedAppSuporteRoute: typeof AuthenticatedAppSuporteRoute
+  AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+}
+
+const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppAnotacoesRoute: AuthenticatedAppAnotacoesRoute,
+  AuthenticatedAppChatRoute: AuthenticatedAppChatRoute,
+  AuthenticatedAppFinanceiroRoute: AuthenticatedAppFinanceiroRoute,
+  AuthenticatedAppProjetosRoute: AuthenticatedAppProjetosRoute,
+  AuthenticatedAppRestritaRoute: AuthenticatedAppRestritaRoute,
+  AuthenticatedAppSuporteRoute: AuthenticatedAppSuporteRoute,
+  AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+}
+
+const AuthenticatedAppRouteWithChildren =
+  AuthenticatedAppRoute._addFileChildren(AuthenticatedAppRouteChildren)
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
+  AuthenticatedPortalRoute: typeof AuthenticatedPortalRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
+  AuthenticatedPortalRoute: AuthenticatedPortalRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicJobsUptimeRoute: ApiPublicJobsUptimeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
