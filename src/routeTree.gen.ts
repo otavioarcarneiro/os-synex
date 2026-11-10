@@ -19,6 +19,7 @@ import { Route as AuthenticatedAppAnotacoesRouteImport } from './routes/_authent
 import { Route as AuthenticatedAppChatRouteImport } from './routes/_authenticated/app.chat'
 import { Route as AuthenticatedAppFinanceiroRouteImport } from './routes/_authenticated/app.financeiro'
 import { Route as AuthenticatedAppProjetosRouteImport } from './routes/_authenticated/app.projetos'
+import { Route as AuthenticatedAppRestritaRouteImport } from './routes/_authenticated/app.restrita'
 import { Route as AuthenticatedAppSuporteRouteImport } from './routes/_authenticated/app.suporte'
 import { Route as ApiPublicJobsUptimeRouteImport } from './routes/api/public/jobs/uptime'
 
@@ -74,6 +75,12 @@ const AuthenticatedAppProjetosRoute =
     path: '/projetos',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppRestritaRoute =
+  AuthenticatedAppRestritaRouteImport.update({
+    id: '/restrita',
+    path: '/restrita',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppSuporteRoute = AuthenticatedAppSuporteRouteImport.update({
   id: '/suporte',
   path: '/suporte',
@@ -94,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/app/chat': typeof AuthenticatedAppChatRoute
   '/app/financeiro': typeof AuthenticatedAppFinanceiroRoute
   '/app/projetos': typeof AuthenticatedAppProjetosRoute
+  '/app/restrita': typeof AuthenticatedAppRestritaRoute
   '/app/suporte': typeof AuthenticatedAppSuporteRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/jobs/uptime': typeof ApiPublicJobsUptimeRoute
@@ -106,6 +114,7 @@ export interface FileRoutesByTo {
   '/app/chat': typeof AuthenticatedAppChatRoute
   '/app/financeiro': typeof AuthenticatedAppFinanceiroRoute
   '/app/projetos': typeof AuthenticatedAppProjetosRoute
+  '/app/restrita': typeof AuthenticatedAppRestritaRoute
   '/app/suporte': typeof AuthenticatedAppSuporteRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/api/public/jobs/uptime': typeof ApiPublicJobsUptimeRoute
@@ -121,6 +130,7 @@ export interface FileRoutesById {
   '/_authenticated/app/chat': typeof AuthenticatedAppChatRoute
   '/_authenticated/app/financeiro': typeof AuthenticatedAppFinanceiroRoute
   '/_authenticated/app/projetos': typeof AuthenticatedAppProjetosRoute
+  '/_authenticated/app/restrita': typeof AuthenticatedAppRestritaRoute
   '/_authenticated/app/suporte': typeof AuthenticatedAppSuporteRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/jobs/uptime': typeof ApiPublicJobsUptimeRoute
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/app/chat'
     | '/app/financeiro'
     | '/app/projetos'
+    | '/app/restrita'
     | '/app/suporte'
     | '/app/'
     | '/api/public/jobs/uptime'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '/app/chat'
     | '/app/financeiro'
     | '/app/projetos'
+    | '/app/restrita'
     | '/app/suporte'
     | '/app'
     | '/api/public/jobs/uptime'
@@ -162,6 +174,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/chat'
     | '/_authenticated/app/financeiro'
     | '/_authenticated/app/projetos'
+    | '/_authenticated/app/restrita'
     | '/_authenticated/app/suporte'
     | '/_authenticated/app/'
     | '/api/public/jobs/uptime'
@@ -247,6 +260,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppProjetosRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/restrita': {
+      id: '/_authenticated/app/restrita'
+      path: '/restrita'
+      fullPath: '/app/restrita'
+      preLoaderRoute: typeof AuthenticatedAppRestritaRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/suporte': {
       id: '/_authenticated/app/suporte'
       path: '/suporte'
@@ -269,6 +289,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppChatRoute: typeof AuthenticatedAppChatRoute
   AuthenticatedAppFinanceiroRoute: typeof AuthenticatedAppFinanceiroRoute
   AuthenticatedAppProjetosRoute: typeof AuthenticatedAppProjetosRoute
+  AuthenticatedAppRestritaRoute: typeof AuthenticatedAppRestritaRoute
   AuthenticatedAppSuporteRoute: typeof AuthenticatedAppSuporteRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
@@ -278,6 +299,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppChatRoute: AuthenticatedAppChatRoute,
   AuthenticatedAppFinanceiroRoute: AuthenticatedAppFinanceiroRoute,
   AuthenticatedAppProjetosRoute: AuthenticatedAppProjetosRoute,
+  AuthenticatedAppRestritaRoute: AuthenticatedAppRestritaRoute,
   AuthenticatedAppSuporteRoute: AuthenticatedAppSuporteRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
 }
