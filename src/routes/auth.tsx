@@ -107,8 +107,8 @@ function LoginPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
-      {/* Painel de marca com divisão diagonal */}
-      <div className="tech-grid absolute inset-x-0 top-0 h-56 bg-canvas md:inset-y-0 md:h-auto md:[clip-path:polygon(0_0,44%_0,58%_100%,0_100%)]" />
+      {/* Painel de marca meio a meio */}
+      <div className="tech-grid absolute inset-x-0 top-0 h-56 bg-canvas md:inset-y-0 md:h-auto md:right-1/2" />
       <div className="pointer-events-none absolute left-[8%] top-1/2 hidden h-[420px] w-[420px] -translate-y-1/2 rounded-full bg-primary/15 blur-[120px] md:block" />
       <div className="relative z-10 grid min-h-screen md:grid-cols-[1fr_1fr]">
         <div className="flex h-56 items-center justify-center px-8 md:h-auto md:justify-start md:pl-[6%]">
