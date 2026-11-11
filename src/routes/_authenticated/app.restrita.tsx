@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, KeyRound, Lock, ShieldCheck, UserPlus } from "lucide-react";
+import { ArrowLeft, KeyRound, Lock, ShieldCheck, UserPlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe, ROLE_LABEL, DEPT_LABEL, type Role } from "@/hooks/use-me";
@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { canRevokeOwnerSession } from "@/lib/access-rules";
 
 export const Route = createFileRoute("/_authenticated/app/restrita")({ component: Restricted });
 const SUDO = "synex_sudo_until";
@@ -198,11 +199,13 @@ function AddUserDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
 
 function UserDetail({ user, onClose }: { user: UserRow | null; onClose: () => void }) {
   const qc = useQueryClient();
+  const { data: me } = useMe();
   const [action, setAction] = useState<null | "delete" | "role_change" | "revoke_sessions">(null);
   const [role, setRole] = useState<"client" | "partner" | "admin">("client");
   const [dept, setDept] = useState<"execucao" | "juridico">("execucao");
-  const { data: sessions = [] } = useQuery({ queryKey: ["sessions", user?.id], enabled: !!user, queryFn: async () => (await supabase.from("active_sessions").select("*").eq("user_id", user!.id).order("created_at", { ascending: false })).data ?? [] });
+  const { data: sessions = [] } = useQuery({ queryKey: ["sessions", user?.id], enabled: !!user, queryFn: async () => user ? (await supabase.from("active_sessions").select("*").eq("user_id", user.id).order("created_at", { ascending: false })).data ?? [] : [] });
   const owner = !!user && OWNER_EMAILS.includes(user.email.toLowerCase());
+  const canRevoke = !!me && !!user && canRevokeOwnerSession(me.id, user.id, user.email);
   return (
     <Sheet open={!!user} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full overflow-y-auto bg-card sm:max-w-md">
@@ -217,9 +220,9 @@ function UserDetail({ user, onClose }: { user: UserRow | null; onClose: () => vo
                 <ul className="space-y-2">{sessions.map((s) => (
                   <li key={s.id} className="flex items-center justify-between rounded-lg border border-border p-2 text-xs">
                     <div><p className="font-medium">{s.device} · {s.browser}</p><p className="text-muted-foreground">{s.os} · {s.ip} · {new Date(s.created_at).toLocaleString("pt-BR")}</p></div>
-                    <Button size="sm" variant="ghost" onClick={async () => { await supabase.from("active_sessions").delete().eq("id", s.id); qc.invalidateQueries({ queryKey: ["sessions", user.id] }); toast.success("Sessão revogada"); }}>Revogar</Button>
+                    {canRevoke && <Button size="sm" variant="ghost" onClick={async () => { const { error } = await supabase.from("active_sessions").delete().eq("id", s.id); if (error) return err(error); qc.invalidateQueries({ queryKey: ["sessions", user.id] }); toast.success("Sessão revogada"); }}>Revogar</Button>}
                   </li>))}</ul>)}
-              {sessions.length > 0 && <Button size="sm" variant="secondary" className="mt-2 w-full" onClick={() => setAction("revoke_sessions")}>Revogar todos os dispositivos</Button>}
+              {sessions.length > 0 && canRevoke && <Button size="sm" variant="secondary" className="mt-2 w-full" onClick={() => setAction("revoke_sessions")}>Revogar todos os dispositivos</Button>}
             </div>
             {owner ? <p className="flex items-center gap-2 rounded-lg bg-primary/10 p-3 text-sm text-primary"><ShieldCheck className="h-4 w-4" /> Conta proprietária blindada.</p> : (
               <div className="space-y-2 border-t border-border pt-4">
@@ -253,22 +256,33 @@ function UserDetail({ user, onClose }: { user: UserRow | null; onClose: () => vo
 }
 
 function Audit() {
+  const qc = useQueryClient();
+  const { data: me } = useMe();
+  const [remove, setRemove] = useState<string | "all" | null>(null);
   const { data: logs = [] } = useQuery({ queryKey: ["audit"], queryFn: async () => (await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(50)).data ?? [] });
   const { data: names = [] } = useQuery({ queryKey: ["audit-names"], queryFn: async () => (await supabase.from("profiles").select("id, full_name, email")).data ?? [] });
   const n = (id: string | null) => { const p = names.find((x) => x.id === id); return p?.full_name || p?.email || "—"; };
   return (
-    <Panel title="Trilha de auditoria (imutável)">
+    <Panel title="Trilha de auditoria" action={me?.primaryRole === "owner" && logs.length > 0 ? <Button variant="destructive" size="sm" onClick={() => setRemove("all")}><Trash2 className="h-4 w-4" /> Limpar registros</Button> : undefined}>
       {logs.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum registro ainda.</p> : (
         <ul className="divide-y divide-border text-sm">
           {logs.map((l) => (
             <li key={l.id} className="grid gap-1 py-2 md:grid-cols-[170px_120px_1fr]">
               <span className="font-mono text-xs text-muted-foreground">{new Date(l.created_at).toLocaleString("pt-BR", { second: "2-digit", minute: "2-digit", hour: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" })}</span>
               <Badge variant="outline" className="w-fit">{l.action}</Badge>
-              <span>{n(l.actor_id)} → {n(l.target_id)} · <span className="text-muted-foreground">{l.reason}</span></span>
+              <span>{n(l.actor_id)} → {n(l.target_id)} · <span className="text-muted-foreground">{l.reason}</span>{me?.primaryRole === "owner" && <Button variant="ghost" size="icon" aria-label="Excluir registro" onClick={() => setRemove(l.id)}><Trash2 className="h-4 w-4" /></Button>}</span>
             </li>
           ))}
         </ul>
       )}
+      <ReasonDialog open={!!remove} onOpenChange={(v) => !v && setRemove(null)} title={remove === "all" ? "Limpar toda a auditoria" : "Excluir registro de auditoria"} description="Exclusão definitiva para testes. Esta ação não pode ser desfeita." destructive onConfirm={async () => {
+        if (!remove || me?.primaryRole !== "owner") return;
+        let query = supabase.from("audit_logs").delete();
+        query = remove === "all" ? query.not("id", "is", null) : query.eq("id", remove);
+        const { error } = await query;
+        if (error) throw error;
+        await qc.invalidateQueries({ queryKey: ["audit"] }); setRemove(null); toast.success("Registros excluídos");
+      }} />
     </Panel>
   );
 }

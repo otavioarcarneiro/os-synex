@@ -29,3 +29,7 @@ use the editor.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
 - Each server-only helper lives in *.server.ts; privileged actions go through createServerFn in src/lib/*.functions.ts with an owner role check (keeps admin client off the browser).
+- External website telemetry uses the public Synex tag and origin-checked, bounded collector; aggregate reads obey project RLS. Public tags cannot authenticate financial sales, so conversion counts are observational only.
+- Owner session revocation is checked both by database policy and server action; never rely on disabled UI controls for mutual owner shielding.
+- Google registration rejects unregistered identities in the Auth lifecycle trigger; existing sessions require an active CRM profile and assigned role.
+- Audit deletion is an explicit owner-only RLS exception; updates remain immutable.
