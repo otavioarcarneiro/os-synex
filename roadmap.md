@@ -1,4 +1,12 @@
 # Synex OS — roadmap
+- [ ] Correção de segurança — aguarda aprovação da estratégia de migração e testes isolados
+  - [ ] PIN privado, autorização restrita e tentativas atômicas
+  - [ ] Sessões vinculadas à autenticação, suspensão e recuperação segura
+  - [ ] Permissões financeiras, clientes e funções SQL
+  - [ ] Dependências corrigidas e proteção SSRF
+  - [ ] Login, origens oficiais, mensagens, IA e Analytics
+  - [ ] Auditoria atômica, regressão por cinco perfis e relatório técnico
+  - [ ] Implantação coordenada — somente após autorização separada
 - [x] Auditoria manual de segurança: funções, políticas, chaves e dependências — riscos em relatório, sem correções aplicadas
 - [ ] Consolidar análise aprofundada de segurança — aguarda conclusão automática; testes autenticados ainda pendentes
 - [x] Login diagonal, backoff, bloqueio administrativo + ficha forense, sessão única
