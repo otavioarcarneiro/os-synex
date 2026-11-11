@@ -14,14 +14,14 @@ export function StatCard({ label, value, hint, icon }: { label: string; value: R
 const UPTIME = {
   online: { cls: "bg-success", label: "Online" },
   warning: { cls: "bg-warning", label: "Atenção" },
-  down: { cls: "bg-danger", label: "Queda/Erro" },
+  down: { cls: "bg-danger", label: "Queda / Fora do ar" },
   unknown: { cls: "bg-muted-foreground", label: "Sem leitura" },
 } as const;
 export function UptimeLight({ status, withLabel = true }: { status: string; withLabel?: boolean }) {
   const u = UPTIME[(status as keyof typeof UPTIME)] ?? UPTIME.unknown;
   return (
-    <span className="inline-flex items-center gap-2 text-sm">
-      <span className={cn("h-2.5 w-2.5 rounded-full", u.cls, status === "online" && "shadow-[0_0_8px_var(--success)]")} />
+    <span className={cn("inline-flex items-center gap-2 text-sm", status === "down" && "font-semibold text-danger")}>
+      <span className={cn("h-2.5 w-2.5 rounded-full", u.cls, status === "online" && "shadow-[0_0_8px_var(--success)]", status === "down" && "animate-pulse shadow-[0_0_10px_var(--danger)]")} />
       {withLabel && u.label}
     </span>
   );

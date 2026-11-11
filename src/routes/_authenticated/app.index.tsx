@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, FolderKanban, Users, Wallet } from "lucide-react";
+import { Activity, AlertTriangle, FolderKanban, Users, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/hooks/use-me";
 import { monthlyFee, brl } from "@/lib/pricing";
@@ -32,6 +32,12 @@ function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="mb-8"><h1 className="text-3xl font-semibold md:text-4xl">Olá{first ? `, ${first}` : ""}</h1><p className="mt-3 text-base text-muted-foreground md:text-lg">Visão geral da operação Synex.</p></div>
+      {sites.filter((s) => s.uptime_status === "down").map((s) => (
+        <div key={s.id} role="alert" className="flex items-start gap-3 rounded-xl border border-danger bg-danger/15 p-4 text-danger">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 animate-pulse" />
+          <div><p className="font-semibold">Incidente: o site {s.name} caiu</p><p className="text-sm text-foreground/80">{s.url ?? "Site"} está fora do ar e precisa de atenção.</p></div>
+        </div>
+      ))}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Clientes" value={data?.clients ?? "—"} icon={<Users className="h-4 w-4" />} />
         <StatCard label="Projetos ativos" value={projects.length} hint={`${sites.length} sites · ${projects.length - sites.length} Instagram`} icon={<FolderKanban className="h-4 w-4" />} />
