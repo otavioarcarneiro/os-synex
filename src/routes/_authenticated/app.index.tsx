@@ -6,7 +6,7 @@ import { useMe } from "@/hooks/use-me";
 import { monthlyFee, brl } from "@/lib/pricing";
 import { PageTitle, Panel, StatCard, UptimeLight } from "@/components/synex/ui-bits";
 
-export const Route = createFileRoute("/_authenticated/app/")({ component: Dashboard });
+export const Route = createFileRoute("/_authenticated/app/")({ head: () => ({ meta: [{ title: "Dashboard — Synex OS" }, { name: "description", content: "Visão geral da operação Synex." }, { property: "og:title", content: "Dashboard — Synex OS" }, { property: "og:description", content: "Visão geral da operação Synex." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: Dashboard });
 
 function Dashboard() {
   const { data: me } = useMe();
@@ -31,7 +31,7 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <PageTitle title={`Olá${first ? `, ${first}` : ""}`} subtitle="Visão geral da operação Synex." />
+      <div className="mb-8"><h1 className="text-3xl font-semibold md:text-4xl">Olá{first ? `, ${first}` : ""}</h1><p className="mt-3 text-base text-muted-foreground md:text-lg">Visão geral da operação Synex.</p></div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Clientes" value={data?.clients ?? "—"} icon={<Users className="h-4 w-4" />} />
         <StatCard label="Projetos ativos" value={projects.length} hint={`${sites.length} sites · ${projects.length - sites.length} Instagram`} icon={<FolderKanban className="h-4 w-4" />} />

@@ -10,7 +10,7 @@ import { PageTitle, Panel, StatCard, PIX_KEY } from "@/components/synex/ui-bits"
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-export const Route = createFileRoute("/_authenticated/app/financeiro")({ component: Finance });
+export const Route = createFileRoute("/_authenticated/app/financeiro")({ head: () => ({ meta: [{ title: "Financeiro — Synex OS" }, { name: "description", content: "Faturas e recorrência da Synex." }, { property: "og:title", content: "Financeiro — Synex OS" }, { property: "og:description", content: "Faturas e recorrência da Synex." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: Finance });
 
 function Finance() {
   const { data: me } = useMe();

@@ -4,5 +4,12 @@
 - [ ] E-mails de cobrança (3 dias antes / vencimento / agradecimento) — precisa de domínio de e-mail
 - [ ] Alerta de queda no WhatsApp — precisa de serviço de WhatsApp
 - [ ] Agendar uptime a cada 30 min
-- [ ] Métricas GA4 e Instagram — precisam das contas conectadas
-- [ ] Login com Google/Apple só para e-mails autorizados
+- [ ] Métricas Instagram — precisam da conta conectada; GA4 substituído por Synex Analytics
+- [x] Google exclusivo para usuários previamente autorizados (sem Apple)
+- [ ] Validar autorização Google com escolha real da conta — requer interação do usuário no Google
+- [x] Blindagem mútua de sessões proprietárias
+- [x] Montserrat e destaque das boas-vindas
+- [x] Analytics Synex: código por projeto, visitas, horários e conversões
+- [ ] Coleta nos sites externos — publicar o Synex OS e instalar o código no site; conversões exigem chamada no sucesso da compra
+- [x] Projeto oficial #1 e alternador CRM / Portal para proprietários
+- [x] Limpeza de auditoria exclusiva dos proprietários

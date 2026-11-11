@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/app/suporte")({ component: Support });
+export const Route = createFileRoute("/_authenticated/app/suporte")({ head: () => ({ meta: [{ title: "Suporte — Synex OS" }, { name: "description", content: "Atendimento aos clientes Synex." }, { property: "og:title", content: "Suporte — Synex OS" }, { property: "og:description", content: "Atendimento aos clientes Synex." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: Support });
 
 function Support() {
   const qc = useQueryClient();

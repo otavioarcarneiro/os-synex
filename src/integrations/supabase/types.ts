@@ -300,8 +300,10 @@ export type Database = {
           ga4_property_id: string | null
           id: string
           instagram_handle: string | null
+          is_ecommerce: boolean
           kind: string
           name: string
+          project_number: number | null
           publish_status: string
           setup_price: number
           uptime_checked_at: string | null
@@ -317,8 +319,10 @@ export type Database = {
           ga4_property_id?: string | null
           id?: string
           instagram_handle?: string | null
+          is_ecommerce?: boolean
           kind?: string
           name: string
+          project_number?: number | null
           publish_status?: string
           setup_price?: number
           uptime_checked_at?: string | null
@@ -334,8 +338,10 @@ export type Database = {
           ga4_property_id?: string | null
           id?: string
           instagram_handle?: string | null
+          is_ecommerce?: boolean
           kind?: string
           name?: string
+          project_number?: number | null
           publish_status?: string
           setup_price?: number
           uptime_checked_at?: string | null
@@ -403,6 +409,38 @@ export type Database = {
           user_agent?: string | null
         }
         Relationships: []
+      }
+      site_events: {
+        Row: {
+          event_id: string
+          id: string
+          kind: string
+          occurred_at: string
+          project_id: string
+        }
+        Insert: {
+          event_id: string
+          id?: string
+          kind: string
+          occurred_at?: string
+          project_id: string
+        }
+        Update: {
+          event_id?: string
+          id?: string
+          kind?: string
+          occurred_at?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       support_messages: {
         Row: {
@@ -511,6 +549,10 @@ export type Database = {
         Args: { _channel: string; _uid: string }
         Returns: boolean
       }
+      can_revoke_session: {
+        Args: { _actor: string; _target: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -518,8 +560,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      ingest_site_event: {
+        Args: { _event: string; _kind: string; _project: string }
+        Returns: undefined
+      }
       is_owner_email: { Args: { _email: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      site_analytics_summary: { Args: { _project: string }; Returns: Json }
       user_department: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["department"]

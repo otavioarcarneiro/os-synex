@@ -1,0 +1,25 @@
+CREATE OR REPLACE FUNCTION public.can_revoke_session(_actor uuid, _target uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT public.has_role(_actor,'owner') AND (_actor=_target OR NOT EXISTS (SELECT 1 FROM public.profiles WHERE id=_target AND public.is_owner_email(email))) $$;
+ALTER POLICY "sessions revoke" ON public.active_sessions USING (public.can_revoke_session(auth.uid(),user_id));
+CREATE OR REPLACE FUNCTION public.block_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path=public AS $$ BEGIN IF TG_OP='DELETE' AND public.has_role(auth.uid(),'owner') THEN RETURN OLD; END IF; RAISE EXCEPTION 'Registro imutável'; END $$;
+GRANT DELETE ON public.audit_logs TO authenticated;
+CREATE POLICY "owner deletes audit" ON public.audit_logs FOR DELETE TO authenticated USING (public.has_role(auth.uid(),'owner'));
+CREATE OR REPLACE FUNCTION public.handle_new_user() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ BEGIN
+IF new.raw_app_meta_data->>'provider'='google' AND NOT EXISTS (SELECT 1 FROM public.profiles p JOIN public.user_roles r ON r.user_id=p.id WHERE lower(p.email)=lower(new.email) AND p.status='active') THEN RAISE EXCEPTION 'Acesso não autorizado pela Synex'; END IF;
+INSERT INTO public.profiles(id,email,full_name) VALUES(new.id,new.email,coalesce(new.raw_user_meta_data->>'full_name','')) ON CONFLICT(id) DO NOTHING;
+IF public.is_owner_email(new.email) THEN INSERT INTO public.user_roles(user_id,role) VALUES(new.id,'owner') ON CONFLICT DO NOTHING; END IF;
+RETURN new; END $$;
+ALTER TABLE public.projects ADD COLUMN is_ecommerce boolean NOT NULL DEFAULT false;
+ALTER TABLE public.projects ADD COLUMN project_number integer;
+CREATE UNIQUE INDEX projects_number_unique ON public.projects(project_number) WHERE project_number IS NOT NULL;
+CREATE TABLE public.site_events(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE, event_id uuid NOT NULL, kind text NOT NULL CHECK(kind IN ('visit','conversion')), occurred_at timestamptz NOT NULL DEFAULT now(), UNIQUE(project_id,event_id));
+GRANT SELECT ON public.site_events TO authenticated; GRANT ALL ON public.site_events TO service_role;
+ALTER TABLE public.site_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "project event reads" ON public.site_events FOR SELECT TO authenticated USING(EXISTS(SELECT 1 FROM public.projects WHERE id=project_id));
+CREATE INDEX site_events_project_time ON public.site_events(project_id,occurred_at);
+CREATE OR REPLACE FUNCTION public.site_analytics_summary(_project uuid) RETURNS jsonb LANGUAGE sql STABLE SECURITY INVOKER SET search_path=public AS $$ SELECT jsonb_build_object('visits',(SELECT count(*) FROM public.site_events WHERE project_id=_project AND kind='visit'),'conversions',(SELECT count(*) FROM public.site_events WHERE project_id=_project AND kind='conversion'),'last_event',(SELECT max(occurred_at) FROM public.site_events WHERE project_id=_project),'hours',coalesce((SELECT jsonb_agg(row_to_json(h)) FROM (SELECT extract(hour FROM occurred_at AT TIME ZONE 'America/Sao_Paulo')::int AS hour,count(*) AS visits FROM public.site_events WHERE project_id=_project AND kind='visit' AND occurred_at>=now()-interval '30 days' GROUP BY 1 ORDER BY 1) h),'[]'::jsonb)) $$;
+GRANT EXECUTE ON FUNCTION public.site_analytics_summary(uuid) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.site_analytics_summary(uuid) FROM anon;
+CREATE OR REPLACE FUNCTION public.ingest_site_event(_project uuid,_event uuid,_kind text) RETURNS void LANGUAGE plpgsql SECURITY INVOKER SET search_path=public AS $$ BEGIN PERFORM pg_advisory_xact_lock(hashtext(_project::text)); IF (SELECT count(*) FROM public.site_events WHERE project_id=_project AND occurred_at>now()-interval '1 minute')>=120 THEN RAISE EXCEPTION 'Limite de coleta'; END IF; INSERT INTO public.site_events(project_id,event_id,kind) VALUES(_project,_event,_kind) ON CONFLICT(project_id,event_id) DO NOTHING; END $$;
+REVOKE EXECUTE ON FUNCTION public.ingest_site_event(uuid,uuid,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.ingest_site_event(uuid,uuid,text) TO service_role;
+COMMENT ON COLUMN public.projects.ga4_property_id IS 'DEPRECATED: replaced by Synex site_events analytics';

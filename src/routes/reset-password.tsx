@@ -13,6 +13,8 @@ import { routeAfterLogin } from "./auth";
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "Definir nova senha — Synex OS" },
       { name: "description", content: "Defina sua nova senha de acesso ao Synex OS." },
       { property: "og:title", content: "Definir nova senha — Synex OS" },

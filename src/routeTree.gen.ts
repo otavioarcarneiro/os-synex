@@ -22,6 +22,7 @@ import { Route as AuthenticatedAppFinanceiroRouteImport } from './routes/_authen
 import { Route as AuthenticatedAppProjetosRouteImport } from './routes/_authenticated/app.projetos'
 import { Route as AuthenticatedAppRestritaRouteImport } from './routes/_authenticated/app.restrita'
 import { Route as AuthenticatedAppSuporteRouteImport } from './routes/_authenticated/app.suporte'
+import { Route as ApiPublicAnalyticsCollectRouteImport } from './routes/api/public/analytics/collect'
 import { Route as ApiPublicJobsUptimeRouteImport } from './routes/api/public/jobs/uptime'
 
 const IndexRoute = IndexRouteImport.update({
@@ -92,6 +93,12 @@ const AuthenticatedAppSuporteRoute = AuthenticatedAppSuporteRouteImport.update({
   path: '/suporte',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const ApiPublicAnalyticsCollectRoute =
+  ApiPublicAnalyticsCollectRouteImport.update({
+    id: '/api/public/analytics/collect',
+    path: '/api/public/analytics/collect',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicJobsUptimeRoute = ApiPublicJobsUptimeRouteImport.update({
   id: '/api/public/jobs/uptime',
   path: '/api/public/jobs/uptime',
@@ -111,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/app/restrita': typeof AuthenticatedAppRestritaRoute
   '/app/suporte': typeof AuthenticatedAppSuporteRoute
   '/app/': typeof AuthenticatedAppIndexRoute
+  '/api/public/analytics/collect': typeof ApiPublicAnalyticsCollectRoute
   '/api/public/jobs/uptime': typeof ApiPublicJobsUptimeRoute
 }
 export interface FileRoutesByTo {
@@ -125,6 +133,7 @@ export interface FileRoutesByTo {
   '/app/restrita': typeof AuthenticatedAppRestritaRoute
   '/app/suporte': typeof AuthenticatedAppSuporteRoute
   '/app': typeof AuthenticatedAppIndexRoute
+  '/api/public/analytics/collect': typeof ApiPublicAnalyticsCollectRoute
   '/api/public/jobs/uptime': typeof ApiPublicJobsUptimeRoute
 }
 export interface FileRoutesById {
@@ -142,6 +151,7 @@ export interface FileRoutesById {
   '/_authenticated/app/restrita': typeof AuthenticatedAppRestritaRoute
   '/_authenticated/app/suporte': typeof AuthenticatedAppSuporteRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/api/public/analytics/collect': typeof ApiPublicAnalyticsCollectRoute
   '/api/public/jobs/uptime': typeof ApiPublicJobsUptimeRoute
 }
 export interface FileRouteTypes {
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/app/restrita'
     | '/app/suporte'
     | '/app/'
+    | '/api/public/analytics/collect'
     | '/api/public/jobs/uptime'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/app/restrita'
     | '/app/suporte'
     | '/app'
+    | '/api/public/analytics/collect'
     | '/api/public/jobs/uptime'
   id:
     | '__root__'
@@ -189,6 +201,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/restrita'
     | '/_authenticated/app/suporte'
     | '/_authenticated/app/'
+    | '/api/public/analytics/collect'
     | '/api/public/jobs/uptime'
   fileRoutesById: FileRoutesById
 }
@@ -197,6 +210,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicAnalyticsCollectRoute: typeof ApiPublicAnalyticsCollectRoute
   ApiPublicJobsUptimeRoute: typeof ApiPublicJobsUptimeRoute
 }
 
@@ -293,6 +307,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppSuporteRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/api/public/analytics/collect': {
+      id: '/api/public/analytics/collect'
+      path: '/api/public/analytics/collect'
+      fullPath: '/api/public/analytics/collect'
+      preLoaderRoute: typeof ApiPublicAnalyticsCollectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/jobs/uptime': {
       id: '/api/public/jobs/uptime'
       path: '/api/public/jobs/uptime'
@@ -344,6 +365,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicAnalyticsCollectRoute: ApiPublicAnalyticsCollectRoute,
   ApiPublicJobsUptimeRoute: ApiPublicJobsUptimeRoute,
 }
 export const routeTree = rootRouteImport
