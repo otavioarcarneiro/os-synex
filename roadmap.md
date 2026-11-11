@@ -5,4 +5,9 @@
 - [ ] Alerta de queda no WhatsApp — precisa de serviço de WhatsApp
 - [ ] Agendar uptime a cada 30 min
 - [ ] Métricas GA4 e Instagram — precisam das contas conectadas
-- [ ] Login com Google/Apple só para e-mails autorizados
+- [ ] Google exclusivo para usuários previamente autorizados (sem Apple)
+- [ ] Blindagem mútua de sessões proprietárias
+- [ ] Montserrat e destaque das boas-vindas
+- [ ] Analytics Synex: código por projeto, visitas, horários e conversões
+- [ ] Projeto oficial #1 e alternador CRM / Portal para proprietários
+- [ ] Limpeza de auditoria exclusiva dos proprietários
