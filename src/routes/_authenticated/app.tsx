@@ -7,6 +7,7 @@ import { UserMenu } from "@/components/synex/user-menu";
 import { SessionGuard } from "@/components/synex/session-guard";
 import { SecurityAlerts } from "@/components/synex/security-alerts";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({ meta: [{ title: "Synex OS — CRM" }, { name: "description", content: "Centro de comando da Synex Digital Presence." }, { property: "og:title", content: "Synex OS — CRM" }, { property: "og:description", content: "Centro de comando da Synex Digital Presence." }] }),
@@ -66,7 +67,7 @@ function AppLayout() {
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Synex OS</p>
             <p className="font-display text-sm font-semibold">{current?.label}</p>
           </div>
-          <div className="ml-auto"><UserMenu /></div>
+          <div className="ml-auto flex items-center gap-2">{me.primaryRole === "owner" && <Button variant="secondary" size="sm" className="h-auto min-h-9 max-w-44 whitespace-normal text-xs" onClick={() => navigate({ to: "/portal" })}>Ir para o Portal do Cliente</Button>}<UserMenu /></div>
         </header>
         <nav className="flex gap-1 overflow-x-auto border-b border-border px-3 py-2 md:hidden">
           {items.map((n) => (

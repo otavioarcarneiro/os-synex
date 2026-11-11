@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { monthlyFee } from "./pricing";
+import { canRevokeOwnerSession } from "./access-rules";
 
 type Ctx = { supabase: any; userId: string };
 async function assertOwner(ctx: Ctx) {
@@ -51,6 +52,7 @@ export const userAction = createServerFn({ method: "POST" })
     const { data: prof } = await supabaseAdmin.from("profiles").select("*").eq("id", data.targetId).single();
     if (!prof) throw new Error("Usuário não encontrado");
     if (isOwnerEmail(prof.email) && data.action !== "revoke_sessions") throw new Error("Contas proprietárias são blindadas");
+    if (data.action === "revoke_sessions" && !canRevokeOwnerSession(context.userId, data.targetId, prof.email)) throw new Error("Você só pode revogar os dispositivos do seu próprio perfil proprietário.");
     const { data: oldRoles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", data.targetId);
     let payload: Record<string, unknown> = { old: { status: prof.status, roles: oldRoles?.map((r) => r.role), department: prof.department } };
 
@@ -156,7 +158,8 @@ export async function runUptimeCheck(projectIds?: string[]) {
     const started = Date.now();
     let status: "online" | "warning" | "down" = "down";
     try {
-      const res = await fetch(p.url!, { method: "GET", redirect: "follow", signal: AbortSignal.timeout(10000) });
+      if (!p.url) return { id: p.id, status };
+      const res = await fetch(p.url, { method: "GET", redirect: "follow", signal: AbortSignal.timeout(10000) });
       const ms = Date.now() - started;
       status = res.ok ? (ms > 3000 ? "warning" : "online") : res.status < 500 ? "warning" : "down";
     } catch { status = "down"; }

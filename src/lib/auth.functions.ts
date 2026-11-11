@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { lockAfterFailures } from "./backoff";
+import { isAuthorizedProfile } from "./access-rules";
 
 export type LoginResult =
   | { status: "ok"; access_token: string; refresh_token: string; session_key: string }
@@ -75,6 +76,15 @@ export const registerSession = createServerFn({ method: "POST" })
     const { requestFingerprint, isOwnerEmail } = await import("./server-helpers.server");
     const fp = requestFingerprint();
     const email = String(context.claims.email ?? "");
+    const { data: profile } = await context.supabase.from("profiles").select("status,email").eq("id", context.userId).maybeSingle();
+    const { data: roles } = await context.supabase.from("user_roles").select("role").eq("user_id", context.userId);
+    if (!isAuthorizedProfile(profile?.status, roles?.length ?? 0) || profile?.email.toLowerCase() !== email.toLowerCase()) throw new Error("Acesso não autorizado pela Synex.");
+    const { data: security } = await supabaseAdmin.from("login_security").select("admin_locked,locked_until").eq("email", email.toLowerCase()).maybeSingle();
+    if ((security?.admin_locked && !isOwnerEmail(email)) || (security?.locked_until && new Date(security.locked_until) > new Date())) throw new Error("Acesso bloqueado por segurança.");
+    if (!isOwnerEmail(email)) {
+      const { data: settings } = await supabaseAdmin.from("system_settings").select("maintenance_mode").eq("id",1).single();
+      if (settings?.maintenance_mode) throw new Error("O Synex OS está em manutenção.");
+    }
     const session_key = crypto.randomUUID();
     if (!isOwnerEmail(email)) await supabaseAdmin.from("active_sessions").delete().eq("user_id", context.userId);
     await supabaseAdmin.from("active_sessions").insert({ user_id: context.userId, session_key, device: fp.device, os: fp.os, browser: fp.browser, ip: fp.ip });

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircle, Send, X } from "lucide-react";
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SiteAnalytics } from "@/components/synex/site-analytics";
 
 export const Route = createFileRoute("/_authenticated/portal")({
   head: () => ({ meta: [{ title: "Portal do Cliente — Synex" }, { name: "description", content: "Acompanhe seus projetos com a Synex." }, { property: "og:title", content: "Portal do Cliente — Synex" }, { property: "og:description", content: "Acompanhe seus projetos com a Synex." }] }),
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/portal")({
 });
 
 function Portal() {
+  const navigate = useNavigate();
   const { data: me } = useMe();
   const { data: projects = [] } = useQuery({ queryKey: ["my-projects"], queryFn: async () => (await supabase.from("projects").select("*").order("created_at")).data ?? [] });
   const [sel, setSel] = useState<string>("");
@@ -30,15 +32,15 @@ function Portal() {
   return (
     <div className="min-h-screen bg-canvas">
       <SessionGuard />
-      <header className="flex h-16 items-center gap-4 border-b border-border px-4 md:px-8">
+      <header className="flex min-h-16 flex-wrap items-center gap-3 border-b border-border px-4 py-3 md:px-8">
         <SynexLogo className="w-32" />
         {projects.length > 0 && (
           <Select value={p?.id} onValueChange={setSel}>
-            <SelectTrigger className="ml-4 w-56 bg-field"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-48 max-w-full bg-field"><SelectValue /></SelectTrigger>
             <SelectContent>{projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent>
           </Select>
         )}
-        <div className="ml-auto"><UserMenu /></div>
+        <div className="ml-auto flex items-center gap-2">{me?.primaryRole === "owner" && <Button variant="secondary" size="sm" onClick={() => navigate({ to: "/app" })}>Voltar para o CRM</Button>}<UserMenu /></div>
       </header>
       <main className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
         <h1 className="text-2xl font-semibold">Olá{me?.full_name ? `, ${me.full_name.split(" ")[0]}` : ""}</h1>
@@ -47,8 +49,9 @@ function Portal() {
             <div className="grid gap-4 md:grid-cols-3">
               <Panel title="Projeto"><p className="font-medium">{p.name}</p><p className="text-sm text-muted-foreground">{p.url ?? (p.instagram_handle ? "@" + p.instagram_handle : "")}</p><Badge variant="outline" className="mt-2">{p.publish_status.replace("_", " ")}</Badge></Panel>
               <Panel title="Status do site">{p.kind === "site" ? <UptimeLight status={p.uptime_status} /> : <p className="text-sm text-muted-foreground">Perfil de Instagram</p>}</Panel>
-              <Panel title={p.kind === "site" ? "Acessos (GA4)" : "Instagram"}><p className="text-sm text-muted-foreground">Métricas em breve.</p></Panel>
+              <Panel title="Monitoramento"><p className="text-sm text-muted-foreground">{p.uptime_checked_at ? new Date(p.uptime_checked_at).toLocaleString("pt-BR") : "Aguardando verificação"}</p></Panel>
             </div>
+            {p.kind === "site" && <SiteAnalytics project={p} />}
             <Panel title="Documentos">
               {docs.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum documento.</p> : docs.map((d) => <a key={d.id} href={d.url} target="_blank" rel="noreferrer" className="block py-1 text-sm hover:text-primary">{d.title}</a>)}
             </Panel>
