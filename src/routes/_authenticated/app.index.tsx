@@ -6,7 +6,7 @@ import { useMe } from "@/hooks/use-me";
 import { monthlyFee, brl } from "@/lib/pricing";
 import { PageTitle, Panel, StatCard, UptimeLight } from "@/components/synex/ui-bits";
 
-export const Route = createFileRoute("/_authenticated/app/")({ component: Dashboard });
+export const Route = createFileRoute("/_authenticated/app/")({ head: () => ({ meta: [{ title: "Dashboard — Synex OS" }, { name: "description", content: "Visão geral da operação Synex." }, { property: "og:title", content: "Dashboard — Synex OS" }, { property: "og:description", content: "Visão geral da operação Synex." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: Dashboard });
 
 function Dashboard() {
   const { data: me } = useMe();

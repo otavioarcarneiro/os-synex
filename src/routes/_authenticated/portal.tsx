@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { SiteAnalytics } from "@/components/synex/site-analytics";
 
 export const Route = createFileRoute("/_authenticated/portal")({
-  head: () => ({ meta: [{ title: "Portal do Cliente — Synex" }, { name: "description", content: "Acompanhe seus projetos com a Synex." }, { property: "og:title", content: "Portal do Cliente — Synex" }, { property: "og:description", content: "Acompanhe seus projetos com a Synex." }] }),
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }, { title: "Portal do Cliente — Synex" }, { name: "description", content: "Acompanhe seus projetos com a Synex." }, { property: "og:title", content: "Portal do Cliente — Synex" }, { property: "og:description", content: "Acompanhe seus projetos com a Synex." }] }),
   component: Portal,
 });
 

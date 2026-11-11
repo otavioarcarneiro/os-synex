@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SiteAnalytics } from "@/components/synex/site-analytics";
 
-export const Route = createFileRoute("/_authenticated/app/projetos")({ component: Projects });
+export const Route = createFileRoute("/_authenticated/app/projetos")({ head: () => ({ meta: [{ title: "Projetos e Analytics — Synex OS" }, { name: "description", content: "Sites, projetos e métricas próprias da Synex." }, { property: "og:title", content: "Projetos e Analytics — Synex OS" }, { property: "og:description", content: "Sites, projetos e métricas próprias da Synex." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: Projects });
 
 function Projects() {
   const { data: me } = useMe();

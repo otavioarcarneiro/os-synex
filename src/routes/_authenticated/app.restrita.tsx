@@ -20,7 +20,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { canRevokeOwnerSession } from "@/lib/access-rules";
 
-export const Route = createFileRoute("/_authenticated/app/restrita")({ component: Restricted });
+export const Route = createFileRoute("/_authenticated/app/restrita")({ head: () => ({ meta: [{ title: "Área Restrita — Synex OS" }, { name: "description", content: "Gestão de usuários e auditoria da Synex." }, { property: "og:title", content: "Área Restrita — Synex OS" }, { property: "og:description", content: "Gestão de usuários e auditoria da Synex." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: Restricted });
 const SUDO = "synex_sudo_until";
 const err = (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro");
 

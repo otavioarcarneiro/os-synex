@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/_authenticated/app/anotacoes")({ component: Notes });
+export const Route = createFileRoute("/_authenticated/app/anotacoes")({ head: () => ({ meta: [{ title: "Anotações — Synex OS" }, { name: "description", content: "Anotações e prospecção da Synex." }, { property: "og:title", content: "Anotações — Synex OS" }, { property: "og:description", content: "Anotações e prospecção da Synex." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: Notes });
 
 function Notes() {
   const qc = useQueryClient();

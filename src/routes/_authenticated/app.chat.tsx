@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/app/chat")({ component: Chat });
+export const Route = createFileRoute("/_authenticated/app/chat")({ head: () => ({ meta: [{ title: "Comunicação — Synex OS" }, { name: "description", content: "Conversas internas da equipe Synex." }, { property: "og:title", content: "Comunicação — Synex OS" }, { property: "og:description", content: "Conversas internas da equipe Synex." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: Chat });
 
 const dmSlug = (a: string, b: string) => "dm:" + [a, b].sort().join(":");
 

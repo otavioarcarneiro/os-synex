@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/app")({
-  head: () => ({ meta: [{ title: "Synex OS — CRM" }, { name: "description", content: "Centro de comando da Synex Digital Presence." }, { property: "og:title", content: "Synex OS — CRM" }, { property: "og:description", content: "Centro de comando da Synex Digital Presence." }] }),
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }, { title: "Synex OS — CRM" }, { name: "description", content: "Centro de comando da Synex Digital Presence." }, { property: "og:title", content: "Synex OS — CRM" }, { property: "og:description", content: "Centro de comando da Synex Digital Presence." }] }),
   component: AppLayout,
 });
 
