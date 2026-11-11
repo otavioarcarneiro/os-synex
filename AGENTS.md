@@ -33,3 +33,5 @@ use the editor.
 - Owner session revocation is checked both by database policy and server action; never rely on disabled UI controls for mutual owner shielding.
 - Google registration rejects unregistered identities in the Auth lifecycle trigger; existing sessions require an active CRM profile and assigned role.
 - Audit deletion is an explicit owner-only RLS exception; updates remain immutable.
+- Anonymous password failures use atomic server-only origin counters, never account-wide mutations keyed by a submitted email, to prevent victim lockouts; preserve existing owner-controlled account locks.
+- Uptime uses server-only public-address checks on every redirect plus Workers connection-time egress enforcement (IP-pinned transport in Node preview); manual checks select projects through caller RLS before privileged status updates.

@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
-import { runUptimeCheck } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/api/public/jobs/uptime")({
   server: {
@@ -11,6 +10,7 @@ export const Route = createFileRoute("/api/public/jobs/uptime")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: s } = await supabaseAdmin.from("system_settings").select("uptime_enabled").eq("id", 1).single();
         if (!s?.uptime_enabled) return Response.json({ skipped: true });
+        const { runUptimeCheck } = await import("@/lib/uptime.server");
         const results = await runUptimeCheck();
         return Response.json({ checked: results.length });
       },

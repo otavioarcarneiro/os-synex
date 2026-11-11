@@ -88,8 +88,15 @@ export const releaseLock = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: alert } = await supabaseAdmin.from("security_alerts").select("*").eq("id", data.alertId).single();
     if (!alert) throw new Error("Alerta não encontrado");
+    if (alert.lock_scope === "origin") {
+      const { error } = await supabaseAdmin.rpc("release_origin_login", {
+        _alert_id: alert.id, _actor_id: context.userId, _reason: data.reason,
+      });
+      if (error) throw new Error("Não foi possível liberar a origem bloqueada.");
+      return { ok: true };
+    }
     await supabaseAdmin.from("login_security").upsert({ email: alert.email, failed_count: 0, locked_until: null, admin_locked: false, updated_at: new Date().toISOString() });
-    await supabaseAdmin.from("security_alerts").update({ resolved: true, resolved_at: new Date().toISOString() }).eq("email", alert.email).eq("resolved", false);
+    await supabaseAdmin.from("security_alerts").update({ resolved: true, resolved_at: new Date().toISOString() }).eq("email", alert.email).eq("lock_scope", "account").eq("resolved", false);
     const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("email", alert.email).maybeSingle();
     await supabaseAdmin.from("audit_logs").insert({ actor_id: context.userId, target_id: prof?.id ?? null, action: "unlock", reason: data.reason, payload: { email: alert.email, ip: alert.ip } });
     return { ok: true };
@@ -148,34 +155,17 @@ export const changePin = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// Monitor de uptime
-export async function runUptimeCheck(projectIds?: string[]) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  let q = supabaseAdmin.from("projects").select("id, url").eq("kind", "site").not("url", "is", null);
-  if (projectIds?.length) q = q.in("id", projectIds);
-  const { data: projects } = await q;
-  const results = await Promise.all((projects ?? []).map(async (p) => {
-    const started = Date.now();
-    let status: "online" | "warning" | "down" = "down";
-    try {
-      if (!p.url) return { id: p.id, status };
-      const res = await fetch(p.url, { method: "GET", redirect: "follow", signal: AbortSignal.timeout(10000) });
-      const ms = Date.now() - started;
-      status = res.ok ? (ms > 3000 ? "warning" : "online") : res.status < 500 ? "warning" : "down";
-    } catch { status = "down"; }
-    const latency = Date.now() - started;
-    await supabaseAdmin.from("projects").update({ uptime_status: status, uptime_checked_at: new Date().toISOString(), uptime_latency_ms: latency }).eq("id", p.id);
-    return { id: p.id, status };
-  }));
-  return results;
-}
-
 export const checkUptimeNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ projectId: z.string().uuid().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context);
-    return runUptimeCheck(data.projectId ? [data.projectId] : undefined);
+    let query = context.supabase.from("projects").select("id").eq("kind", "site");
+    if (data.projectId) query = query.eq("id", data.projectId);
+    const { data: projects, error } = await query;
+    if (error || (data.projectId && !projects?.length)) throw new Error("Projeto indisponível para este acesso.");
+    const { runUptimeCheck } = await import("./uptime.server");
+    return runUptimeCheck((projects ?? []).map((project) => project.id));
   });
 
 // Financeiro

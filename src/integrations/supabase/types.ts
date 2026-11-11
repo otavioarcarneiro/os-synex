@@ -139,6 +139,36 @@ export type Database = {
           },
         ]
       }
+      login_origin_security: {
+        Row: {
+          admin_locked: boolean
+          attempt_token: string | null
+          attempt_until: string | null
+          failed_count: number
+          locked_until: string | null
+          origin_key: string
+          updated_at: string
+        }
+        Insert: {
+          admin_locked?: boolean
+          attempt_token?: string | null
+          attempt_until?: string | null
+          failed_count?: number
+          locked_until?: string | null
+          origin_key: string
+          updated_at?: string
+        }
+        Update: {
+          admin_locked?: boolean
+          attempt_token?: string | null
+          attempt_until?: string | null
+          failed_count?: number
+          locked_until?: string | null
+          origin_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       login_security: {
         Row: {
           admin_locked: boolean
@@ -370,6 +400,8 @@ export type Database = {
           geo: string | null
           id: string
           ip: string | null
+          lock_scope: string
+          origin_key: string | null
           os: string | null
           phone: string | null
           resolved: boolean
@@ -386,6 +418,8 @@ export type Database = {
           geo?: string | null
           id?: string
           ip?: string | null
+          lock_scope?: string
+          origin_key?: string | null
           os?: string | null
           phone?: string | null
           resolved?: boolean
@@ -402,6 +436,8 @@ export type Database = {
           geo?: string | null
           id?: string
           ip?: string | null
+          lock_scope?: string
+          origin_key?: string | null
           os?: string | null
           phone?: string | null
           resolved?: boolean
@@ -522,6 +558,35 @@ export type Database = {
         }
         Relationships: []
       }
+      uptime_probe_leases: {
+        Row: {
+          lease_token: string | null
+          lease_until: string | null
+          next_allowed_at: string
+          project_id: string
+        }
+        Insert: {
+          lease_token?: string | null
+          lease_until?: string | null
+          next_allowed_at?: string
+          project_id: string
+        }
+        Update: {
+          lease_token?: string | null
+          lease_until?: string | null
+          next_allowed_at?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uptime_probe_leases_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -545,12 +610,39 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_uptime_probe: {
+        Args: { _project: string; _token: string }
+        Returns: boolean
+      }
+      begin_origin_login: {
+        Args: { _key: string; _token: string }
+        Returns: Json
+      }
       can_access_channel: {
         Args: { _channel: string; _uid: string }
         Returns: boolean
       }
       can_revoke_session: {
         Args: { _actor: string; _target: string }
+        Returns: boolean
+      }
+      finish_origin_login: {
+        Args: {
+          _email: string
+          _fingerprint: Json
+          _key: string
+          _success: boolean
+          _token: string
+        }
+        Returns: Json
+      }
+      finish_uptime_probe: {
+        Args: {
+          _latency: number
+          _project: string
+          _status: string
+          _token: string
+        }
         Returns: boolean
       }
       has_role: {
@@ -566,6 +658,10 @@ export type Database = {
       }
       is_owner_email: { Args: { _email: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      release_origin_login: {
+        Args: { _actor_id: string; _alert_id: string; _reason: string }
+        Returns: undefined
+      }
       site_analytics_summary: { Args: { _project: string }; Returns: Json }
       user_department: {
         Args: { _user_id: string }

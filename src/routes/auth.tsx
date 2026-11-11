@@ -150,7 +150,7 @@ function LoginPage() {
             {locked && (
               <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-3 text-sm text-danger">
                 <p className="flex items-center gap-2 font-semibold"><ShieldAlert className="h-4 w-4" /> Bloqueio administrativo</p>
-                <p className="mt-1 text-danger/90">Por segurança, esta conta foi travada. A liberação é feita manualmente pela Synex após contato pelo WhatsApp.</p>
+                <p className="mt-1 text-danger/90">Esta conta ou origem de acesso foi bloqueada por segurança. A liberação é feita pela Synex após contato pelo WhatsApp.</p>
               </div>
             )}
 

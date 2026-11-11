@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { ReasonDialog } from "./reason-dialog";
 
-type Alert = { id: string; email: string; full_name: string | null; phone: string | null; ip: string | null; geo: string | null; device: string | null; os: string | null; browser: string | null; attempts: number; created_at: string };
+type Alert = { id: string; email: string; full_name: string | null; phone: string | null; ip: string | null; geo: string | null; device: string | null; os: string | null; browser: string | null; attempts: number; created_at: string; lock_scope: string };
 
 export function SecurityAlerts() {
   const qc = useQueryClient();
@@ -28,6 +28,7 @@ export function SecurityAlerts() {
       <button onClick={() => setOpen(a)} className="fixed bottom-6 left-6 z-50 w-80 rounded-xl border-2 border-navy-border bg-navy p-4 text-left shadow-2xl animate-in slide-in-from-bottom-4">
         <span className="inline-flex items-center gap-1 rounded-full bg-danger px-2 py-0.5 text-xs font-bold text-destructive-foreground"><ShieldAlert className="h-3 w-3" /> BLOQUEIO ADMINISTRATIVO</span>
         <p className="mt-2 font-semibold">{a.full_name || a.email}</p>
+        <p className="text-xs text-muted-foreground">{a.lock_scope === "origin" ? "Origem bloqueada · conta preservada" : "Conta bloqueada"}</p>
         <p className="text-xs text-muted-foreground">{a.attempts} tentativas suspeitas · {fmt(a.created_at)}</p>
         {alerts.length > 1 && <p className="mt-1 text-xs text-muted-foreground">+{alerts.length - 1} alerta(s) pendente(s)</p>}
         <p className="mt-2 text-xs text-primary">Abrir ficha forense →</p>
@@ -39,6 +40,7 @@ export function SecurityAlerts() {
             <dl className="grid grid-cols-[120px_1fr] gap-y-2 text-sm">
               <dt className="text-muted-foreground">Nome</dt><dd>{open.full_name || "—"}</dd>
               <dt className="text-muted-foreground">E-mail</dt><dd>{open.email}</dd>
+              <dt className="text-muted-foreground">Bloqueio</dt><dd>{open.lock_scope === "origin" ? "Origem das tentativas (não a conta)" : "Conta"}</dd>
               <dt className="text-muted-foreground">Data e hora</dt><dd className="font-mono">{fmt(open.created_at)}</dd>
               <dt className="text-muted-foreground">Hardware</dt><dd>{open.device}</dd>
               <dt className="text-muted-foreground">Sistema</dt><dd>{open.os}</dd>

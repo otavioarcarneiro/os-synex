@@ -15,6 +15,20 @@
       "when": 1794357356689,
       "tag": "0001_owner_protection_synex_analytics",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794416252584,
+      "tag": "0002_origin_scoped_login_protection",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794416398260,
+      "tag": "0003_bounded_uptime_probe_leases",
+      "breakpoints": true
     }
   ]
 }

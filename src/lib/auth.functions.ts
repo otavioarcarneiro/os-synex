@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { lockAfterFailures } from "./backoff";
 import { isAuthorizedProfile } from "./access-rules";
 
 export type LoginResult =
@@ -24,27 +23,23 @@ export const secureLogin = createServerFn({ method: "POST" })
     if (sec?.admin_locked && !owner) return { status: "admin_locked" };
     if (sec?.locked_until && new Date(sec.locked_until) > new Date()) return { status: "cooldown", until: sec.locked_until };
 
+    const { beginOriginLogin, finishOriginLogin } = await import("./login-origin.server");
+    const attempt = await beginOriginLogin(supabaseAdmin);
+    if (attempt.result.status !== "allowed") return attempt.result;
+
     const client = publicClient();
     const { data: auth, error } = await client.auth.signInWithPassword({ email, password: data.password });
 
     if (error || !auth.session) {
-      const failed = (sec?.failed_count ?? 0) + 1;
-      const decision = lockAfterFailures(failed);
-      const adminLock = decision.adminLock && !owner;
-      const until = decision.cooldownMinutes ? new Date(Date.now() + decision.cooldownMinutes * 60000).toISOString() : null;
-      await supabaseAdmin.from("login_security").upsert({
-        email, failed_count: failed, locked_until: until, admin_locked: adminLock, updated_at: new Date().toISOString(),
-      });
-      if (adminLock) {
-        const { data: prof } = await supabaseAdmin.from("profiles").select("full_name, phone").eq("email", email).maybeSingle();
-        await supabaseAdmin.from("security_alerts").insert({
-          email, full_name: prof?.full_name ?? null, phone: prof?.phone ?? null, ip: fp.ip, geo: fp.geo,
-          device: fp.device, os: fp.os, browser: fp.browser, user_agent: fp.ua, attempts: failed,
-        });
-        return { status: "admin_locked" };
-      }
-      if (until) return { status: "cooldown", until };
-      return { status: "invalid", attemptsLeft: Math.max(0, 3 - failed) };
+      // Failed anonymous requests may penalize only their trusted origin, never
+      // the caller-selected email. Existing account-level owner locks stay intact.
+      return finishOriginLogin(supabaseAdmin, attempt, false, email, fp);
+    }
+
+    const originResult = await finishOriginLogin(supabaseAdmin, attempt, true, email, fp);
+    if (originResult.status !== "ok") {
+      await client.auth.signOut();
+      return originResult;
     }
 
     const userId = auth.user.id;
@@ -61,7 +56,7 @@ export const secureLogin = createServerFn({ method: "POST" })
       }
     }
 
-    await supabaseAdmin.from("login_security").upsert({ email, failed_count: 0, locked_until: null, admin_locked: false, updated_at: new Date().toISOString() });
+    // Do not overwrite an owner's concurrent account lock on successful login.
     const session_key = crypto.randomUUID();
     if (!owner) await supabaseAdmin.from("active_sessions").delete().eq("user_id", userId);
     await supabaseAdmin.from("active_sessions").insert({ user_id: userId, session_key, device: fp.device, os: fp.os, browser: fp.browser, ip: fp.ip });
