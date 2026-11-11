@@ -38,7 +38,7 @@ describe("uptime redirect and DNS guards", () => {
   it("follows valid relative redirects", async () => {
     const request = vi.fn().mockResolvedValueOnce({ status: 301, location: "/ok" }).mockResolvedValueOnce({ status: 200, location: null });
     await expect(probePublicSite("https://example.com", publicDns, request)).resolves.toBe(200);
-    expect(request.mock.calls[1][0].pathname).toBe("/ok");
+    expect(request.mock.calls[1]?.[0].pathname).toBe("/ok");
   });
   it("limits redirect loops", async () => {
     const request = vi.fn().mockResolvedValue({ status: 302, location: "/loop" });

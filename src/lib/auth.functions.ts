@@ -33,7 +33,8 @@ export const secureLogin = createServerFn({ method: "POST" })
     if (error || !auth.session) {
       // Failed anonymous requests may penalize only their trusted origin, never
       // the caller-selected email. Existing account-level owner locks stay intact.
-      return finishOriginLogin(supabaseAdmin, attempt, false, email, fp);
+      const failed = await finishOriginLogin(supabaseAdmin, attempt, false, email, fp);
+      return failed.status === "ok" ? { status: "invalid", attemptsLeft: 0 } : failed;
     }
 
     const originResult = await finishOriginLogin(supabaseAdmin, attempt, true, email, fp);

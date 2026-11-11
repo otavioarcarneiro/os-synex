@@ -96,6 +96,7 @@ async function requestPublicSite(url: URL, addresses: string[], signal: AbortSig
   const transport = url.protocol === "https:" ? await import("node:https") : await import("node:http");
   return new Promise((resolve, reject) => {
     const address = addresses[0];
+    if (!address) { reject(new Error("No validated address")); return; }
     const req = transport.request(url, {
       method: "HEAD", signal, agent: false, maxHeaderSize: 16384,
       headers: { "user-agent": "Synex-Uptime/1.0", accept: "*/*" },
