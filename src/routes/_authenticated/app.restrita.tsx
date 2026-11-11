@@ -275,7 +275,7 @@ function Audit() {
           ))}
         </ul>
       )}
-      <ReasonDialog open={!!remove} onOpenChange={(v) => !v && setRemove(null)} title={remove === "all" ? "Limpar toda a auditoria" : "Excluir registro de auditoria"} description="Exclusão definitiva para testes. Esta ação não pode ser desfeita." destructive onConfirm={async () => {
+      <ReasonDialog open={!!remove} onOpenChange={(v) => !v && setRemove(null)} reasonLabel="Motivo da limpeza (não será preservado)" title={remove === "all" ? "Limpar toda a auditoria" : "Excluir registro de auditoria"} description="Exclusão definitiva para testes. Esta ação não pode ser desfeita." destructive onConfirm={async () => {
         if (!remove || me?.primaryRole !== "owner") return;
         let query = supabase.from("audit_logs").delete();
         query = remove === "all" ? query.not("id", "is", null) : query.eq("id", remove);

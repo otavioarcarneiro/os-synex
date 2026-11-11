@@ -3,9 +3,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
-export function ReasonDialog({ open, onOpenChange, title, description, confirmLabel = "Confirmar", destructive, onConfirm, children }: {
+export function ReasonDialog({ open, onOpenChange, title, description, confirmLabel = "Confirmar", reasonLabel = "Motivo (obrigatório, registrado na auditoria)", destructive, onConfirm, children }: {
   open: boolean; onOpenChange: (v: boolean) => void; title: string; description?: string; confirmLabel?: string;
-  destructive?: boolean; onConfirm: (reason: string) => Promise<void>; children?: ReactNode;
+  destructive?: boolean; onConfirm: (reason: string) => Promise<void>; children?: ReactNode; reasonLabel?: string;
 }) {
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ export function ReasonDialog({ open, onOpenChange, title, description, confirmLa
         </DialogHeader>
         {children}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Motivo (obrigatório, registrado na auditoria)</label>
+          <label className="text-sm font-medium">{reasonLabel}</label>
           <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Descreva o motivo desta ação..." className="bg-field" maxLength={500} />
         </div>
         <DialogFooter>

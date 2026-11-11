@@ -81,7 +81,7 @@ function Projects() {
         </table>
       </div>
       <NewProjectDialog open={newOpen} onOpenChange={setNewOpen} onCreated={setAnalyticsFor} />
-      <Dialog open={!!analyticsFor} onOpenChange={(v) => !v && setAnalyticsFor(null)}><DialogContent className="max-h-[90vh] overflow-y-auto bg-card sm:max-w-2xl"><DialogHeader><DialogTitle>{projects.find((p) => p.id === analyticsFor)?.name ?? "Projeto criado"}</DialogTitle></DialogHeader>{projects.find((p) => p.id === analyticsFor) && <SiteAnalytics project={projects.find((p) => p.id === analyticsFor) as (typeof projects)[number]} showCode />}</DialogContent></Dialog>
+      <Dialog open={!!analyticsFor} onOpenChange={(v) => !v && setAnalyticsFor(null)}><DialogContent className="min-w-0 max-h-[90vh] overflow-x-hidden overflow-y-auto bg-card sm:max-w-2xl"><DialogHeader><DialogTitle>{projects.find((p) => p.id === analyticsFor)?.name ?? "Projeto criado"}</DialogTitle></DialogHeader>{projects.find((p) => p.id === analyticsFor) && <SiteAnalytics project={projects.find((p) => p.id === analyticsFor) as (typeof projects)[number]} showCode />}</DialogContent></Dialog>
       <DocsDialog projectId={docsFor} onClose={() => setDocsFor(null)} canWrite={!!canWrite} canDelete={isOwner} />
     </div>
   );
