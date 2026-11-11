@@ -1,4 +1,6 @@
 # Synex OS — roadmap
+- [x] Auditoria manual de segurança: funções, políticas, chaves e dependências — riscos em relatório, sem correções aplicadas
+- [ ] Consolidar análise aprofundada de segurança — aguarda conclusão automática; testes autenticados ainda pendentes
 - [x] Login diagonal, backoff, bloqueio administrativo + ficha forense, sessão única
 - [x] Perfil, RBAC, Área Restrita (PIN), usuários + auditoria, projetos, financeiro, chat, anotações, portal + suporte IA
 - [ ] E-mails de cobrança (3 dias antes / vencimento / agradecimento) — precisa de domínio de e-mail
