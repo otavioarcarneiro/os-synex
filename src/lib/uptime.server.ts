@@ -89,8 +89,13 @@ export function pinLookup(address: string): LookupFunction {
   };
 }
 
+function isWorkersRuntime(): boolean {
+  const g = globalThis as { WebSocketPair?: unknown; navigator?: { userAgent?: string } };
+  return typeof g.WebSocketPair !== "undefined" || g.navigator?.userAgent === "Cloudflare-Workers";
+}
+
 async function requestPublicSite(url: URL, addresses: string[], signal: AbortSignal): Promise<Probe> {
-  if (globalThis.navigator?.userAgent === "Cloudflare-Workers") {
+  if (isWorkersRuntime()) {
     // Workers' outbound proxy validates the actual connection destination,
     // blocking internal network services even if DNS changes after preflight.
     // Do not use resolveOverride: it is silently ignored outside the zone.
@@ -162,7 +167,7 @@ export async function runUptimeCheck(projectIds?: string[]) {
       try {
         const code = await probePublicSite(project.url!);
         status = code < 400 ? (Date.now() - t0 > 3000 ? "warning" : "online") : code < 500 ? "warning" : "down";
-      } catch { status = "down"; /* Never include URL, response or internals in client errors. */ }
+      } catch (e) { status = "down"; console.error(`Uptime probe falhou (${project.id}):`, e instanceof Error ? e.message : e); }
       // Retry only fast failures so both attempts fit inside the 20s probe lease.
       if (status !== "down" || attempt === 1 || Date.now() - t0 > 6000) break;
       await new Promise((r) => setTimeout(r, 2000));
