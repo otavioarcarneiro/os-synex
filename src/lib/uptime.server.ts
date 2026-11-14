@@ -163,8 +163,9 @@ export async function runUptimeCheck(projectIds?: string[]) {
         const code = await probePublicSite(project.url!);
         status = code < 400 ? (Date.now() - t0 > 3000 ? "warning" : "online") : code < 500 ? "warning" : "down";
       } catch { status = "down"; /* Never include URL, response or internals in client errors. */ }
-      if (status !== "down" || attempt === 1) break;
-      await new Promise((r) => setTimeout(r, 5000));
+      // Retry only fast failures so both attempts fit inside the 20s probe lease.
+      if (status !== "down" || attempt === 1 || Date.now() - t0 > 6000) break;
+      await new Promise((r) => setTimeout(r, 2000));
     }
     const { data: recorded, error: updateError } = await supabaseAdmin.rpc("finish_uptime_probe", {
       _project: project.id, _token: token, _status: status, _latency: Date.now() - started,
