@@ -143,7 +143,7 @@ export async function probePublicSite(
 export async function runUptimeCheck(projectIds?: string[]) {
   if (projectIds && projectIds.length === 0) return [];
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  let query = supabaseAdmin.from("projects").select("id,url").eq("kind", "site").not("url", "is", null);
+  let query = supabaseAdmin.from("projects").select("id,url,name,uptime_status").eq("kind", "site").not("url", "is", null);
   if (projectIds) query = query.in("id", projectIds);
   const { data: projects, error } = await query;
   if (error) throw new Error("Não foi possível consultar o monitoramento.");
@@ -165,6 +165,10 @@ export async function runUptimeCheck(projectIds?: string[]) {
     });
     if (updateError) throw new Error("Não foi possível registrar o monitoramento.");
     if (recorded) results.push({ id: project.id, status });
+    // Alerta só na transição para queda, evitando e-mails repetidos a cada checagem.
+    if (recorded && status === "down" && project.uptime_status !== "down") {
+      try { const { sendDownAlert } = await import("./email.server"); await sendDownAlert(project); } catch (e) { console.error(e); }
+    }
   }
   return results;
 }

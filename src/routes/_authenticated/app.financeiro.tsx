@@ -4,7 +4,7 @@ import { CheckCircle2, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/hooks/use-me";
-import { generateMonthInvoices } from "@/lib/admin.functions";
+import { generateMonthInvoices, notifyInvoicePaid } from "@/lib/admin.functions";
 import { brl, monthlyFee } from "@/lib/pricing";
 import { PageTitle, Panel, StatCard, PIX_KEY } from "@/components/synex/ui-bits";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,9 @@ function Finance() {
                       const { error } = await supabase.from("invoices").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", i.id);
                       if (error) return toast.error(error.message);
                       toast.success("Baixa registrada"); qc.invalidateQueries({ queryKey: ["finance"] });
+                      notifyInvoicePaid({ data: { invoiceId: i.id } })
+                        .then((r) => r.sent && toast.success("Agradecimento enviado ao cliente"))
+                        .catch(() => toast.error("Baixa feita, mas o e-mail de agradecimento falhou"));
                     }}><CheckCircle2 className="h-4 w-4" /> Marcar pago</Button>
                   )}
                 </li>

@@ -106,28 +106,37 @@ export type Database = {
           amount: number
           created_at: string
           due_date: string
+          due_notice_sent_at: string | null
           id: string
           paid_at: string | null
           project_id: string
+          reminder_sent_at: string | null
           status: string
+          thanks_sent_at: string | null
         }
         Insert: {
           amount: number
           created_at?: string
           due_date: string
+          due_notice_sent_at?: string | null
           id?: string
           paid_at?: string | null
           project_id: string
+          reminder_sent_at?: string | null
           status?: string
+          thanks_sent_at?: string | null
         }
         Update: {
           amount?: number
           created_at?: string
           due_date?: string
+          due_notice_sent_at?: string | null
           id?: string
           paid_at?: string | null
           project_id?: string
+          reminder_sent_at?: string | null
           status?: string
+          thanks_sent_at?: string | null
         }
         Relationships: [
           {

@@ -34,6 +34,9 @@ export const secureLogin = createServerFn({ method: "POST" })
       // Failed anonymous requests may penalize only their trusted origin, never
       // the caller-selected email. Existing account-level owner locks stay intact.
       const failed = await finishOriginLogin(supabaseAdmin, attempt, false, email, fp);
+      if (failed.status === "admin_locked") {
+        try { const { sendLockAlert } = await import("./email.server"); await sendLockAlert({ email, ...fp }); } catch (e) { console.error(e); }
+      }
       return failed.status === "ok" ? { status: "invalid", attemptsLeft: 0 } : failed;
     }
 

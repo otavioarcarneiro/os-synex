@@ -189,3 +189,13 @@ export const generateMonthInvoices = createServerFn({ method: "POST" })
     }
     return { created };
   });
+
+// Agradecimento automático após a baixa manual do pagamento (somente proprietário).
+export const notifyInvoicePaid = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ invoiceId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertOwner(context);
+    const { sendPaymentThanks } = await import("./billing.server");
+    return { sent: await sendPaymentThanks(data.invoiceId) };
+  });
