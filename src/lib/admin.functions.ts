@@ -52,7 +52,7 @@ export const userAction = createServerFn({ method: "POST" })
     const { data: prof } = await supabaseAdmin.from("profiles").select("*").eq("id", data.targetId).single();
     if (!prof) throw new Error("Usuário não encontrado");
     if (isOwnerEmail(prof.email) && data.action !== "revoke_sessions") throw new Error("Contas proprietárias são blindadas");
-    if (data.action === "revoke_sessions" && !canRevokeOwnerSession(context.userId, data.targetId, prof.email)) throw new Error("Você só pode revogar os dispositivos do seu próprio perfil proprietário.");
+    if (data.action === "revoke_sessions" && !canRevokeOwnerSession(context.userId, data.targetId, !!(await supabaseAdmin.from("user_roles").select("id").eq("user_id", data.targetId).eq("role", "owner").maybeSingle()).data)) throw new Error("Você só pode revogar os dispositivos do seu próprio perfil proprietário.");
     const { data: oldRoles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", data.targetId);
     let payload: Record<string, unknown> = { old: { status: prof.status, roles: oldRoles?.map((r) => r.role), department: prof.department } };
 

@@ -34,9 +34,13 @@ function AppLayout() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   useEffect(() => {
     if (!me) return;
-    if (me.primaryRole === "client" || !me.primaryRole) navigate({ to: me.primaryRole ? "/portal" : "/auth", replace: true });
-  }, [me, navigate]);
-  if (isLoading || !me || me.primaryRole === "client") {
+    if (me.primaryRole === "client" || !me.primaryRole) { navigate({ to: me.primaryRole ? "/portal" : "/auth", replace: true }); return; }
+    // Typed URLs to sections the role cannot see go straight back to the dashboard.
+    const blocked = NAV.find((n) => n.to !== "/app" && (path === n.to || path.startsWith(n.to + "/")) && !n.show(me));
+    if (blocked) navigate({ to: "/app", replace: true });
+  }, [me, navigate, path]);
+  const denied = !!me && NAV.some((n) => n.to !== "/app" && (path === n.to || path.startsWith(n.to + "/")) && !n.show(me));
+  if (isLoading || !me || me.primaryRole === "client" || denied) {
     return <div className="flex min-h-screen items-center justify-center bg-canvas"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   }
   const items = NAV.filter((n) => n.show(me));

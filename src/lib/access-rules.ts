@@ -1,6 +1,6 @@
-export const ownerEmails = ["otavio.arcarneiro@gmail.com", "synex.presence@gmail.com"];
-export function canRevokeOwnerSession(actorId: string, targetId: string, targetEmail: string) {
-  return actorId === targetId || !ownerEmails.includes(targetEmail.trim().toLowerCase());
+// Owner status comes from the database role table, never from emails in code.
+export function canRevokeOwnerSession(actorId: string, targetId: string, targetIsOwner: boolean) {
+  return actorId === targetId || !targetIsOwner;
 }
 export function isAuthorizedProfile(status: string | undefined, roleCount: number) {
   return status === "active" && roleCount > 0;

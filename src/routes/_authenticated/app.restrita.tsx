@@ -102,7 +102,6 @@ function Toggles() {
 }
 
 type UserRow = { id: string; full_name: string; email: string; phone: string | null; avatar_url: string | null; department: "juridico" | "execucao" | null; status: string; created_at: string; role: Role | null };
-const OWNER_EMAILS = ["otavio.arcarneiro@gmail.com", "synex.presence@gmail.com"];
 
 function badgeFor(u: UserRow) {
   if (u.role === "admin" && u.department) return DEPT_LABEL[u.department];
@@ -119,7 +118,7 @@ function Users() {
     queryKey: ["admin-users"],
     queryFn: async () => {
       const [{ data: p }, { data: r }] = await Promise.all([supabase.from("profiles").select("*").neq("status", "deleted").order("full_name"), supabase.from("user_roles").select("user_id, role")]);
-      return (p ?? []).map((x) => ({ ...x, role: (r?.find((y) => y.user_id === x.id)?.role ?? null) as Role | null })) as UserRow[];
+      return (p ?? []).map((x) => ({ ...x, role: ((r?.some((y) => y.user_id === x.id && y.role === "owner") ? "owner" : r?.find((y) => y.user_id === x.id)?.role) ?? null) as Role | null })) as UserRow[];
     },
   });
   const list = useMemo(() => users.filter((u) => tab === "todos" ? true : tab === "clientes" ? u.role === "client" : u.role === "admin" && u.department === tab), [users, tab]);
@@ -130,7 +129,7 @@ function Users() {
       </Tabs>
       <ul className="divide-y divide-border">
         {list.map((u) => {
-          const owner = OWNER_EMAILS.includes(u.email.toLowerCase());
+          const owner = u.role === "owner";
           return (
             <li key={u.id} className="flex items-center gap-3 py-3">
               <UserAvatar me={u} className="h-9 w-9" />
@@ -204,8 +203,8 @@ function UserDetail({ user, onClose }: { user: UserRow | null; onClose: () => vo
   const [role, setRole] = useState<"client" | "partner" | "admin">("client");
   const [dept, setDept] = useState<"execucao" | "juridico">("execucao");
   const { data: sessions = [] } = useQuery({ queryKey: ["sessions", user?.id], enabled: !!user, queryFn: async () => user ? (await supabase.from("active_sessions").select("*").eq("user_id", user.id).order("created_at", { ascending: false })).data ?? [] : [] });
-  const owner = !!user && OWNER_EMAILS.includes(user.email.toLowerCase());
-  const canRevoke = !!me && !!user && canRevokeOwnerSession(me.id, user.id, user.email);
+  const owner = !!user && user.role === "owner";
+  const canRevoke = !!me && !!user && canRevokeOwnerSession(me.id, user.id, user.role === "owner");
   return (
     <Sheet open={!!user} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full overflow-y-auto bg-card sm:max-w-md">
