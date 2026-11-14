@@ -3,7 +3,7 @@ import { FROM_FINANCEIRO, reminderHtml, sendEmail, thanksHtml } from "./email.se
 const ymd = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 const SELECT = "id,amount,due_date,status,reminder_sent_at,due_notice_sent_at,thanks_sent_at,project:projects(name,client:profiles!projects_client_id_fkey(email,full_name))";
 
-async function admin() { return (await import("@/integrations/supabase/client.server")).supabaseAdmin; }
+async function admin(): Promise<any> { return (await import("@/integrations/supabase/client.server")).supabaseAdmin; }
 function info(row: any) {
   const client = row.project?.client;
   return { to: client?.email as string | undefined, inv: { amount: Number(row.amount), due_date: row.due_date, project: row.project?.name ?? "Projeto", name: client?.full_name || "cliente" } };

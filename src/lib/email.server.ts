@@ -25,8 +25,8 @@ ${cta ? `<p style="margin:20px 0 0"><a href="${cta.url}" style="background:#3478
 }
 
 export async function sendEmail(from: string, to: string, subject: string, html: string) {
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  const resendKey = process.env.RESEND_API_KEY;
+  const lovableKey = process.env['LOVABLE_API_KEY'];
+  const resendKey = process.env['RESEND_API_KEY'];
   if (!lovableKey || !resendKey) throw new Error("Serviço de e-mail não configurado");
   const res = await fetch(`${GATEWAY_URL}/emails`, {
     method: "POST",
