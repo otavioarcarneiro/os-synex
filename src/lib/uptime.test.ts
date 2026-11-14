@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { isPublicAddress, probePublicSite, validateUptimeUrl } from "./uptime.server";
+import { isPublicAddress, pinLookup, probePublicSite, validateUptimeUrl } from "./uptime.server";
 
 describe("uptime public destinations", () => {
   it.each([
@@ -14,6 +14,19 @@ describe("uptime public destinations", () => {
     "http://127.1", "http://[::ffff:127.0.0.1]", "https://user:pass@example.com",
   ])("rejects unsafe URL %s", (value) => expect(() => validateUptimeUrl(value)).toThrow());
   it("allows ordinary public URLs", () => expect(validateUptimeUrl("https://synexdigital.com.br/path?q=1#fragment").href).toBe("https://synexdigital.com.br/path?q=1"));
+});
+
+describe("pinned Node lookup", () => {
+  it("returns one validated IPv4 address in single-address mode", () => {
+    const callback = vi.fn();
+    pinLookup("1.1.1.1")("example.com", { all: false }, callback);
+    expect(callback).toHaveBeenCalledWith(null, "1.1.1.1", 4);
+  });
+  it("returns the same validated IPv4 address in all-addresses mode", () => {
+    const callback = vi.fn();
+    pinLookup("1.1.1.1")("example.com", { all: true }, callback);
+    expect(callback).toHaveBeenCalledWith(null, [{ address: "1.1.1.1", family: 4 }]);
+  });
 });
 
 describe("uptime redirect and DNS guards", () => {

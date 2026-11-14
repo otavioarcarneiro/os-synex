@@ -1,4 +1,5 @@
 import ipaddr from "ipaddr.js";
+import type { LookupFunction } from "node:net";
 
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 const MAX_REDIRECTS = 4;
@@ -78,6 +79,16 @@ async function readBounded(response: Response, limit: number): Promise<string> {
 type Probe = { status: number; location: string | null };
 export type UptimeTransport = (url: URL, addresses: string[], signal: AbortSignal) => Promise<Probe>;
 
+export function pinLookup(address: string): LookupFunction {
+  const family = ipaddr.parse(address).kind() === "ipv4" ? 4 : 6;
+  return (_hostname, options, callback) => {
+    // Node 22 may request every address (`all: true`) even for one pinned IP.
+    // Its callback then expects LookupAddress[], not a string plus family.
+    if (options.all) callback(null, [{ address, family }]);
+    else callback(null, address, family);
+  };
+}
+
 async function requestPublicSite(url: URL, addresses: string[], signal: AbortSignal): Promise<Probe> {
   if (globalThis.navigator?.userAgent === "Cloudflare-Workers") {
     // Workers' outbound proxy validates the actual connection destination,
@@ -100,7 +111,7 @@ async function requestPublicSite(url: URL, addresses: string[], signal: AbortSig
     const req = transport.request(url, {
       method: "HEAD", signal, agent: false, maxHeaderSize: 16384,
       headers: { "user-agent": "Synex-Uptime/1.0", accept: "*/*" },
-      lookup: (_hostname, _options, callback) => callback(null, address, ipaddr.parse(address).kind() === "ipv4" ? 4 : 6),
+      lookup: pinLookup(address),
     }, (response) => {
       resolve({ status: response.statusCode ?? 500, location: response.headers.location ?? null });
       response.destroy();

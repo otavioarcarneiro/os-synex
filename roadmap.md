@@ -1,4 +1,8 @@
 # Synex OS — roadmap
+- [ ] Correções pontuais da auditoria: remover simulação, uptime real a cada 30 min e e-mails operacionais/financeiros
+  - [x] Remover botão e estado de simulação de queda
+  - [x] Ativar checagem automática real a cada 30 minutos
+  - [ ] Alerta de queda e e-mails de cobrança/agradecimento — aguarda configuração do domínio de e-mail
 - [ ] Correção de segurança — aguarda aprovação da estratégia de migração e testes isolados
   - [ ] PIN privado, autorização restrita e tentativas atômicas
   - [ ] Sessões vinculadas à autenticação, suspensão e recuperação segura
@@ -13,7 +17,7 @@
 - [x] Perfil, RBAC, Área Restrita (PIN), usuários + auditoria, projetos, financeiro, chat, anotações, portal + suporte IA
 - [ ] E-mails de cobrança (3 dias antes / vencimento / agradecimento) — precisa de domínio de e-mail
 - [ ] Alerta de queda no WhatsApp — precisa de serviço de WhatsApp
-- [ ] Agendar uptime a cada 30 min
+- [x] Agendar uptime a cada 30 min
 - [ ] Métricas Instagram — precisam da conta conectada; GA4 substituído por Synex Analytics
 - [x] Google exclusivo para usuários previamente autorizados (sem Apple)
 - [ ] Validar autorização Google com escolha real da conta — requer interação do usuário no Google

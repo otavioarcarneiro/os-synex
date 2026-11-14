@@ -84,11 +84,6 @@ function Projects() {
                   }} />
                 </td>
                 <td className="p-4 text-right whitespace-nowrap">
-                  {p.kind === "site" && isOwner && <Button size="sm" variant={p.uptime_status === "down" ? "secondary" : "destructive"} onClick={async () => {
-                    const next = p.uptime_status === "down" ? "online" : "down";
-                    const { error } = await supabase.from("projects").update({ uptime_status: next, uptime_checked_at: new Date().toISOString() }).eq("id", p.id);
-                    if (error) toast.error(error.message); else { toast.success(next === "down" ? "Queda simulada" : "Site restaurado"); qc.invalidateQueries(); }
-                  }}>{p.uptime_status === "down" ? "Restaurar Online" : "Simular Queda"}</Button>}
                   {p.kind === "site" && <Button size="sm" variant="ghost" onClick={() => check(p.id)}><RefreshCw className="h-4 w-4" /></Button>}
                   {p.kind === "site" && <Button size="sm" variant="ghost" onClick={() => setAnalyticsFor(p.id)}><ChartColumn className="h-4 w-4" /> Analytics</Button>}
                   <Button size="sm" variant="ghost" onClick={() => setDocsFor(p.id)}><FileText className="h-4 w-4" /> Docs</Button>
