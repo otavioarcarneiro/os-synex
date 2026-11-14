@@ -91,10 +91,26 @@ export function pinLookup(address: string): LookupFunction {
 
 function isWorkersRuntime(): boolean {
   const g = globalThis as { WebSocketPair?: unknown; navigator?: { userAgent?: string } };
-  return typeof g.WebSocketPair !== "undefined" || g.navigator?.userAgent === "Cloudflare-Workers";
+  return typeof g.WebSocketPair !== "undefined" || (g.navigator?.userAgent ?? "").startsWith("Cloudflare");
+}
+
+async function fetchProbe(url: URL, signal: AbortSignal, method: "HEAD" | "GET"): Promise<Probe> {
+  const response = await fetch(url, {
+    method, redirect: "manual", signal, credentials: "omit",
+    headers: { "user-agent": "Mozilla/5.0 (compatible; Synex-Uptime/1.0)", accept: "*/*" },
+  });
+  await response.body?.cancel().catch(() => {});
+  return { status: response.status, location: response.headers.get("location") };
 }
 
 async function requestPublicSite(url: URL, addresses: string[], signal: AbortSignal): Promise<Probe> {
+  const first = await requestOnce(url, addresses, signal);
+  // Some servers reject HEAD (403/405/501); confirm with a GET before judging.
+  if ([403, 405, 501].includes(first.status)) return fetchProbe(url, signal, "GET");
+  return first;
+}
+
+async function requestOnce(url: URL, addresses: string[], signal: AbortSignal): Promise<Probe> {
   if (isWorkersRuntime()) {
     // Workers' outbound proxy validates the actual connection destination,
     // blocking internal network services even if DNS changes after preflight.
@@ -109,6 +125,16 @@ async function requestPublicSite(url: URL, addresses: string[], signal: AbortSig
   }
   // The local Node preview lacks the Workers egress proxy. Pin its connection
   // to the validated IP, retaining original Host and TLS certificate/SNI checks.
+  try { return await nodePinned(url, addresses, signal); }
+  catch (e) {
+    // Runtime without working node sockets (published edge): Workers' egress
+    // proxy enforces destinations, so standard fetch is the safe fallback.
+    if (signal.aborted) throw e;
+    return fetchProbe(url, signal, "HEAD");
+  }
+}
+
+async function nodePinned(url: URL, addresses: string[], signal: AbortSignal): Promise<Probe> {
   const transport = url.protocol === "https:" ? await import("node:https") : await import("node:http");
   return new Promise((resolve, reject) => {
     const address = addresses[0];
@@ -161,16 +187,31 @@ export async function runUptimeCheck(projectIds?: string[]) {
     if (!acquired) continue;
     const started = Date.now();
     let status: "online" | "warning" | "down" = "down";
+    let inconclusive = false;
     // Two attempts: a site is only marked down if both fail (avoids false alarms).
     for (let attempt = 0; attempt < 2; attempt++) {
       const t0 = Date.now();
+      inconclusive = false;
       try {
         const code = await probePublicSite(project.url!);
         status = code < 400 ? (Date.now() - t0 > 3000 ? "warning" : "online") : code < 500 ? "warning" : "down";
-      } catch (e) { status = "down"; console.error(`Uptime probe falhou (${project.id}):`, e instanceof Error ? e.message : e); }
+      } catch (e) {
+        status = "down";
+        const msg = e instanceof Error ? e.message : String(e);
+        // Our own DNS validation/resolver failing says nothing about the site.
+        inconclusive = /validar o destino|Destino interno ou indispon/.test(msg);
+        console.error(`Uptime probe falhou (${project.id}):`, msg);
+      }
       // Retry only fast failures so both attempts fit inside the 20s probe lease.
       if (status !== "down" || attempt === 1 || Date.now() - t0 > 6000) break;
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+    if (status === "down" && inconclusive) {
+      // Checker-side failure: keep the previous status and send no alert.
+      await supabaseAdmin.rpc("finish_uptime_probe", {
+        _project: project.id, _token: token, _status: (project.uptime_status ?? "online") as "online" | "warning" | "down", _latency: Date.now() - started,
+      });
+      continue;
     }
     const { data: recorded, error: updateError } = await supabaseAdmin.rpc("finish_uptime_probe", {
       _project: project.id, _token: token, _status: status, _latency: Date.now() - started,
