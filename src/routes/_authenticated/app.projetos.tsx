@@ -19,6 +19,14 @@ import { SiteAnalytics } from "@/components/synex/site-analytics";
 
 export const Route = createFileRoute("/_authenticated/app/projetos")({ head: () => ({ meta: [{ title: "Projetos e Analytics — Synex OS" }, { name: "description", content: "Sites, projetos e métricas próprias da Synex." }, { property: "og:title", content: "Projetos e Analytics — Synex OS" }, { property: "og:description", content: "Sites, projetos e métricas próprias da Synex." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: Projects });
 
+function lastCheckLabel(iso: string | null | undefined) {
+  if (!iso) return "Nunca verificado";
+  const when = new Date(iso);
+  const mins = Math.max(0, Math.round((Date.now() - when.getTime()) / 60000));
+  const rel = mins < 1 ? "agora" : mins < 60 ? `há ${mins} min` : mins < 1440 ? `há ${Math.floor(mins / 60)} h` : `há ${Math.floor(mins / 1440)} d`;
+  return `Última checagem: ${when.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} (${rel})`;
+}
+
 function Projects() {
   const { data: me } = useMe();
   const qc = useQueryClient();
@@ -30,6 +38,7 @@ function Projects() {
   const [checking, setChecking] = useState(false);
   const { data: projects = [] } = useQuery({
     queryKey: ["projects"],
+    refetchInterval: 60000,
     queryFn: async () => (await supabase.from("projects").select("*, client:profiles!projects_client_id_fkey(full_name, email)").order("project_number", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false })).data ?? [],
   });
 
@@ -39,6 +48,8 @@ function Projects() {
     catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); } finally { setChecking(false); }
   }
 
+  const lastOverall = projects.filter((p: any) => p.kind === "site" && p.uptime_checked_at).map((p: any) => p.uptime_checked_at as string).sort().at(-1);
+
   return (
     <div>
       <PageTitle title="Projetos & Sites" subtitle="Cada cliente pode ter vários sites e perfis de Instagram."
@@ -46,6 +57,7 @@ function Projects() {
           <Button variant="secondary" onClick={() => check()} disabled={checking}><RefreshCw className={checking ? "h-4 w-4 animate-spin" : "h-4 w-4"} /> Verificar uptime</Button>
           {canWrite && <Button onClick={() => setNewOpen(true)}><Plus className="h-4 w-4" /> Novo projeto</Button>}
         </div>} />
+      <p className="mb-3 text-xs text-muted-foreground">{lastOverall ? `Última checagem automática dos sites: ${new Date(lastOverall).toLocaleString("pt-BR")}` : "Nenhum site verificado ainda."}</p>
       <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <table className="w-full text-sm">
           <thead className="text-left text-xs uppercase text-muted-foreground">
@@ -62,6 +74,7 @@ function Projects() {
                 </td>
                 <td className="p-4"><p>{p.client?.full_name || "—"}</p><p className="text-xs text-muted-foreground">{p.client?.email}</p></td>
                 <td className="p-4">{p.kind === "site" ? <UptimeLight status={p.uptime_status} /> : <Badge variant="outline">Instagram</Badge>}
+                  {p.kind === "site" && <p className="text-xs text-muted-foreground">{lastCheckLabel(p.uptime_checked_at)}</p>}
                   {p.uptime_latency_ms != null && <p className="font-mono text-xs text-muted-foreground">{p.uptime_latency_ms} ms</p>}</td>
                 <td className="p-4 font-mono">{brl(monthlyFee(p.contract_start))}<p className="text-xs text-muted-foreground">Setup {brl(Number(p.setup_price))}</p></td>
                 <td className="p-4">
