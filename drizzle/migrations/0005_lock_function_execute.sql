@@ -1,0 +1,5 @@
+GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role), public.is_staff(uuid), public.user_department(uuid), public.can_access_channel(uuid, text), public.can_revoke_session(uuid, uuid), public.site_analytics_summary(uuid) TO authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user(), public.protect_owner_roles(), public.protect_profile_fields(), public.block_mutation(), public.release_origin_login(uuid, uuid, text), public.ingest_site_event(uuid, uuid, text), public.begin_origin_login(text, uuid), public.finish_origin_login(text, uuid, boolean, text, jsonb), public.acquire_uptime_probe(uuid, uuid), public.finish_uptime_probe(uuid, uuid, text, integer) FROM authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon;
