@@ -43,6 +43,13 @@
       "when": 1794782094111,
       "tag": "0005_lock_function_execute",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794782333429,
+      "tag": "0006_pin_hardening",
+      "breakpoints": true
     }
   ]
 }

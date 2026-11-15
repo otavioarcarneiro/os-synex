@@ -119,6 +119,18 @@ async function checkPassword(email: string, password: string) {
 }
 const pinSchema = z.string().regex(/^\d{4,8}$/, "O PIN deve ter de 4 a 8 dígitos");
 
+async function pinGate(admin: any, userId: string) {
+  const { data } = await admin.from("pin_attempts").select("failed_count,locked_until").eq("user_id", userId).maybeSingle();
+  if (data?.locked_until && new Date(data.locked_until) > new Date()) throw new Error("PIN bloqueado após 3 erros. Tente novamente em alguns minutos.");
+  return data?.failed_count ?? 0;
+}
+async function pinResult(admin: any, userId: string, prev: number, ok: boolean) {
+  const { pinAfterFailure } = await import("./pin-lock");
+  const next = ok ? { failed: 0, lockedUntil: null } : pinAfterFailure(prev);
+  await admin.from("pin_attempts").upsert({ user_id: userId, failed_count: next.failed, locked_until: next.lockedUntil, updated_at: new Date().toISOString() });
+  if (!ok && next.lockedUntil) await admin.from("audit_logs").insert({ actor_id: userId, target_id: userId, action: "pin_locked", reason: "3 erros consecutivos no PIN mestre", payload: {} });
+}
+
 export const verifySudo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ password: z.string().min(1).max(200), pin: pinSchema }).parse(d))
@@ -134,7 +146,10 @@ export const verifySudo = createServerFn({ method: "POST" })
       return { ok: true, created: true };
     }
     const [salt, hash] = s.master_pin_hash.split(":");
-    if ((await sha256(salt + data.pin)) !== hash) throw new Error("PIN mestre incorreto");
+    const prev = await pinGate(supabaseAdmin, context.userId);
+    const ok = (await sha256(salt + data.pin)) === hash;
+    await pinResult(supabaseAdmin, context.userId, prev, ok);
+    if (!ok) throw new Error("PIN mestre incorreto");
     return { ok: true, created: false };
   });
 
@@ -148,7 +163,10 @@ export const changePin = createServerFn({ method: "POST" })
     await checkPassword(String(context.claims.email), data.password);
     const { data: s } = await supabaseAdmin.from("system_settings").select("master_pin_hash").eq("id", 1).single();
     const [salt, hash] = (s?.master_pin_hash ?? ":").split(":");
-    if ((await sha256(salt + data.currentPin)) !== hash) throw new Error("PIN atual incorreto");
+    const prev = await pinGate(supabaseAdmin, context.userId);
+    const ok = (await sha256(salt + data.currentPin)) === hash;
+    await pinResult(supabaseAdmin, context.userId, prev, ok);
+    if (!ok) throw new Error("PIN atual incorreto");
     const ns = crypto.randomUUID();
     await supabaseAdmin.from("system_settings").update({ master_pin_hash: `${ns}:${await sha256(ns + data.newPin)}` }).eq("id", 1);
     await supabaseAdmin.from("audit_logs").insert({ actor_id: context.userId, target_id: context.userId, action: "pin_change", reason: "Alteração do PIN mestre pelo proprietário", payload: {} });
