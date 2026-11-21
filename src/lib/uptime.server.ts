@@ -257,6 +257,10 @@ export async function runUptimeCheck(projectIds?: string[]) {
     if (recorded && status === "down" && project.uptime_status !== "down") {
       try { const { sendDownAlert } = await import("./email.server"); await sendDownAlert(project); } catch (e) { console.error(e); }
     }
+    if (recorded && status === "online" && project.uptime_status === "down") {
+      const { pushToOwners } = await import("./push.server");
+      await pushToOwners("uptime_up", { title: "Site voltou ao ar", body: project.name, url: "/app/projetos" });
+    }
   }
   return results;
 }

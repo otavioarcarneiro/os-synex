@@ -4,6 +4,7 @@ import { LayoutDashboard, FolderKanban, Wallet, Bell, NotebookPen, LifeBuoy, Loc
 import { useMe, type Me } from "@/hooks/use-me";
 import { SynexLogo, SynexMark } from "@/components/synex/brand";
 import { UserMenu } from "@/components/synex/user-menu";
+import { PwaPrompt } from "@/components/synex/pwa-prompt";
 import { SessionGuard } from "@/components/synex/session-guard";
 import { SecurityAlerts } from "@/components/synex/security-alerts";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,7 @@ function AppLayout() {
   return (
     <div className="flex min-h-screen bg-canvas">
       <SessionGuard />
+      <PwaPrompt me={me} />
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-canvas px-3 py-5 md:flex">
         <div className="px-3 pb-6"><SynexLogo className="w-36" /></div>
         <nav className="flex flex-1 flex-col gap-1">

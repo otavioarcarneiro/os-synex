@@ -38,6 +38,7 @@ export async function sendPaymentThanks(invoiceId: string) {
   if (!to) return false;
   const { data: claimed } = await db.from("invoices").update({ thanks_sent_at: new Date().toISOString() }).eq("id", invoiceId).is("thanks_sent_at", null).select("id");
   if (!claimed?.length) return false;
+  { const { pushToOwners } = await import("./push.server"); await pushToOwners("invoice_paid", { title: "Fatura paga", body: `${inv.project} — ${inv.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`, url: "/app/financeiro" }); }
   try { await sendEmail(FROM_FINANCEIRO, to, "Pagamento confirmado — obrigado!", thanksHtml(inv)); return true; }
   catch (e) { await db.from("invoices").update({ thanks_sent_at: null }).eq("id", invoiceId); throw e; }
 }

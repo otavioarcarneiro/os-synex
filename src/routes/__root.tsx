@@ -1,4 +1,5 @@
 
+import { swAllowed } from "@/lib/push-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet, Link, createRootRouteWithContext, useRouter, HeadContent, Scripts, type ErrorComponentProps,
@@ -99,6 +100,10 @@ function RootComponent() {
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
+    if (!swAllowed()) {
+      navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => { if (r.active?.scriptURL.endsWith("/sw.js")) r.unregister(); })).catch(() => {});
+      return;
+    }
 
     navigator.serviceWorker
       .register("/sw.js")
