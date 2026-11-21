@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { LayoutDashboard, FolderKanban, Wallet, MessagesSquare, NotebookPen, LifeBuoy, Lock, Loader2 } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Wallet, Bell, NotebookPen, LifeBuoy, Lock, Loader2 } from "lucide-react";
 import { useMe, type Me } from "@/hooks/use-me";
 import { SynexLogo, SynexMark } from "@/components/synex/brand";
 import { UserMenu } from "@/components/synex/user-menu";
@@ -22,7 +22,7 @@ const NAV: NavItem[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, show: () => true },
   { to: "/app/projetos", label: "Projetos", icon: FolderKanban, show: (m) => isOwner(m) || isPartner(m) || isExec(m) || m.primaryRole === "admin" },
   { to: "/app/financeiro", label: "Financeiro", icon: Wallet, show: (m) => isOwner(m) || isPartner(m) },
-  { to: "/app/chat", label: "Comunicação", icon: MessagesSquare, show: () => true },
+  { to: "/app/notificacoes", label: "Notificações", icon: Bell, show: isOwner },
   { to: "/app/anotacoes", label: "Anotações", icon: NotebookPen, show: (m) => isOwner(m) || isPartner(m) },
   { to: "/app/suporte", label: "Suporte", icon: LifeBuoy, show: isOwner },
   { to: "/app/restrita", label: "Configurações", icon: Lock, show: isOwner },
