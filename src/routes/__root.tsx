@@ -1,3 +1,4 @@
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet, Link, createRootRouteWithContext, useRouter, HeadContent, Scripts, type ErrorComponentProps,
@@ -50,6 +51,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Synex OS" },
       { name: "description", content: "Synex OS — CRM e Portal de Clientes da Synex Digital Presence." },
       { name: "author", content: "Synex Digital Presence" },
+      { name: "theme-color", content: "#111318" },
       { property: "og:title", content: "Synex OS" },
       { property: "og:description", content: "CRM e Portal de Clientes da Synex Digital Presence." },
       { property: "og:type", content: "website" },
@@ -62,6 +64,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Google+Sans:wght@500&family=Manrope:wght@400;500;600;700&family=Montserrat:wght@500;600;700&display=swap" },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
     ],
   }),
   shellComponent: RootShell,
