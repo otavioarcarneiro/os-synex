@@ -50,6 +50,13 @@
       "when": 1794782333429,
       "tag": "0006_pin_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795248584660,
+      "tag": "0007_create_staff_two_factor",
+      "breakpoints": true
     }
   ]
 }

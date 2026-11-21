@@ -508,6 +508,69 @@ export type Database = {
           },
         ]
       }
+      staff_two_factor: {
+        Row: {
+          code_expires_at: string | null
+          code_hash: string | null
+          codes_sent: number
+          completed_logins: number
+          cycle_started_at: string | null
+          failed_attempts: number
+          last_code_sent_at: string | null
+          locked_until: string | null
+          manual_release_until: string | null
+          release_requested_at: string | null
+          sac_ticket_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          code_expires_at?: string | null
+          code_hash?: string | null
+          codes_sent?: number
+          completed_logins?: number
+          cycle_started_at?: string | null
+          failed_attempts?: number
+          last_code_sent_at?: string | null
+          locked_until?: string | null
+          manual_release_until?: string | null
+          release_requested_at?: string | null
+          sac_ticket_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          code_expires_at?: string | null
+          code_hash?: string | null
+          codes_sent?: number
+          completed_logins?: number
+          cycle_started_at?: string | null
+          failed_attempts?: number
+          last_code_sent_at?: string | null
+          locked_until?: string | null
+          manual_release_until?: string | null
+          release_requested_at?: string | null
+          sac_ticket_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_two_factor_sac_ticket_id_fkey"
+            columns: ["sac_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_two_factor_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_messages: {
         Row: {
           body: string
