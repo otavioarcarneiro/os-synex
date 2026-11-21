@@ -2,6 +2,7 @@
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 export const OWNER_ALERT_EMAIL = "otavio.arcarneiro@gmail.com";
 export const FROM_SUPORTE = "Synex Suporte <suporte@synexdigital.com.br>";
+export const FROM_UPTIME = "Synex Uptime <uptime@synexdigital.com.br>";
 export const FROM_FINANCEIRO = "Synex Financeiro <financeiro@synexdigital.com.br>";
 const PIX_KEY = "synex.presence@gmail.com";
 const APP_URL = "https://os.synexdigital.com.br";
@@ -45,7 +46,7 @@ export async function sendDownAlert(p: { name: string; url: string | null }) {
     `O monitoramento detectou queda em <b>${esc(p.name)}</b>.`,
     `Endereço: ${esc(p.url ?? "-")}`, `Horário: ${nowBR()}`,
   ], { label: "Abrir Projetos", url: `${APP_URL}/app/projetos` });
-  await sendEmail(FROM_SUPORTE, OWNER_ALERT_EMAIL, `Queda detectada: ${p.name}`, html);
+  await sendEmail(FROM_UPTIME, OWNER_ALERT_EMAIL, `Queda detectada: ${p.name}`, html);
 }
 
 export async function sendLockAlert(p: { email: string; ip?: string; device?: string; browser?: string; os?: string }) {

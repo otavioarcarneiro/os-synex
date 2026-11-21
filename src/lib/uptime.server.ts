@@ -4,6 +4,10 @@ import type { LookupFunction } from "node:net";
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 const MAX_REDIRECTS = 4;
 const TIMEOUT_MS = 10000;
+// Orçamento total por site: precisa caber no lease de 20s de acquire_uptime_probe.
+const PROBE_BUDGET_MS = 18000;
+const RETRY_DELAY_MS = 2000;
+const SLOW_MS = 3000;
 
 export function isPublicAddress(address: string): boolean {
   try {
@@ -156,8 +160,9 @@ export async function probePublicSite(
   value: string,
   resolveAddresses = resolvePublicAddresses,
   transport: UptimeTransport = requestPublicSite,
+  timeoutMs = TIMEOUT_MS,
 ): Promise<number> {
-  const signal = AbortSignal.timeout(TIMEOUT_MS);
+  const signal = AbortSignal.timeout(timeoutMs);
   let url = validateUptimeUrl(value);
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects++) {
     signal.throwIfAborted();
@@ -171,6 +176,55 @@ export async function probePublicSite(
   throw new Error("Limite de redirecionamentos excedido.");
 }
 
+export type SiteStatus = "online" | "warning" | "down";
+
+// 2xx/3xx: online (warning se lento); 4xx: warning (o site respondeu); 5xx: down.
+export function classifyStatusCode(code: number, elapsedMs: number): SiteStatus {
+  if (code < 400) return elapsedMs > SLOW_MS ? "warning" : "online";
+  return code < 500 ? "warning" : "down";
+}
+
+// Falhas do nosso próprio validador/DNS não dizem nada sobre o site.
+export function isInconclusiveError(message: string): boolean {
+  return /validar o destino|Destino interno ou indispon/.test(message);
+}
+
+// Teste HTTP direto e resiliente: só retorna 'down' depois de dupla checagem com falha,
+// repetindo enquanto couber no orçamento de tempo do lease.
+export async function checkSite(
+  url: string,
+  probe: (url: string, timeoutMs: number) => Promise<number> = (u, t) => probePublicSite(u, resolvePublicAddresses, requestPublicSite, t),
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+  now: () => number = Date.now,
+): Promise<{ status: SiteStatus; inconclusive: boolean }> {
+  const started = now();
+  let status: SiteStatus = "down";
+  let inconclusive = false;
+  let failures = 0;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const t0 = now();
+    const remaining = PROBE_BUDGET_MS - (t0 - started);
+    if (attempt > 0 && remaining < 3000) break;
+    inconclusive = false;
+    try {
+      const code = await probe(url, Math.min(TIMEOUT_MS, Math.max(remaining, 3000)));
+      status = classifyStatusCode(code, now() - t0);
+    } catch (e) {
+      status = "down";
+      const msg = e instanceof Error ? e.message : String(e);
+      inconclusive = isInconclusiveError(msg);
+      console.error("Uptime probe falhou:", msg);
+    }
+    if (status !== "down") break;
+    failures++;
+    if (inconclusive) break;
+    // 'down' exige pelo menos duas falhas; a terceira só ocorre se ainda houver tempo.
+    if (failures >= 2 && PROBE_BUDGET_MS - (now() - started) < TIMEOUT_MS + RETRY_DELAY_MS) break;
+    await sleep(RETRY_DELAY_MS);
+  }
+  return { status, inconclusive };
+}
+
 export async function runUptimeCheck(projectIds?: string[]) {
   if (projectIds && projectIds.length === 0) return [];
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -178,7 +232,7 @@ export async function runUptimeCheck(projectIds?: string[]) {
   if (projectIds) query = query.in("id", projectIds);
   const { data: projects, error } = await query;
   if (error) throw new Error("Não foi possível consultar o monitoramento.");
-  const results: { id: string; status: "online" | "warning" | "down" }[] = [];
+  const results: { id: string; status: SiteStatus }[] = [];
   // Sequential requests keep concurrency bounded; HEAD never downloads pages.
   for (const project of projects ?? []) {
     const token = crypto.randomUUID();
@@ -186,26 +240,7 @@ export async function runUptimeCheck(projectIds?: string[]) {
     if (leaseError) throw new Error("Não foi possível iniciar o monitoramento.");
     if (!acquired) continue;
     const started = Date.now();
-    let status: "online" | "warning" | "down" = "down";
-    let inconclusive = false;
-    // Two attempts: a site is only marked down if both fail (avoids false alarms).
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const t0 = Date.now();
-      inconclusive = false;
-      try {
-        const code = await probePublicSite(project.url!);
-        status = code < 400 ? (Date.now() - t0 > 3000 ? "warning" : "online") : code < 500 ? "warning" : "down";
-      } catch (e) {
-        status = "down";
-        const msg = e instanceof Error ? e.message : String(e);
-        // Our own DNS validation/resolver failing says nothing about the site.
-        inconclusive = /validar o destino|Destino interno ou indispon/.test(msg);
-        console.error(`Uptime probe falhou (${project.id}):`, msg);
-      }
-      // Retry only fast failures so both attempts fit inside the 20s probe lease.
-      if (status !== "down" || attempt === 1 || Date.now() - t0 > 6000) break;
-      await new Promise((r) => setTimeout(r, 3000));
-    }
+    const { status, inconclusive } = await checkSite(project.url!);
     if (status === "down" && inconclusive) {
       // Checker-side failure: keep the previous status and send no alert.
       await supabaseAdmin.rpc("finish_uptime_probe", {

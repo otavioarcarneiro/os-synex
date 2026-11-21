@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { isPublicAddress, pinLookup, probePublicSite, validateUptimeUrl } from "./uptime.server";
+import { checkSite, classifyStatusCode, isPublicAddress, pinLookup, probePublicSite, validateUptimeUrl } from "./uptime.server";
 
 describe("uptime public destinations", () => {
   it.each([
@@ -57,5 +57,41 @@ describe("uptime redirect and DNS guards", () => {
     const request = vi.fn().mockResolvedValue({ status: 302, location: "/loop" });
     await expect(probePublicSite("https://example.com", publicDns, request)).rejects.toThrow();
     expect(request).toHaveBeenCalledTimes(5);
+  });
+});
+
+describe("uptime status classification", () => {
+  it("2xx/3xx rápido é online", () => expect(classifyStatusCode(200, 500)).toBe("online"));
+  it("2xx lento é warning", () => expect(classifyStatusCode(200, 4000)).toBe("warning"));
+  it.each([401, 403, 404, 429])("4xx (%i) é warning, nunca down", (code) => expect(classifyStatusCode(code, 100)).toBe("warning"));
+  it.each([500, 502, 503, 504])("5xx (%i) é down", (code) => expect(classifyStatusCode(code, 100)).toBe("down"));
+});
+
+describe("uptime dupla checagem", () => {
+  const sleep = vi.fn().mockResolvedValue(undefined);
+  it("uma falha isolada não marca down", async () => {
+    const probe = vi.fn().mockRejectedValueOnce(new Error("timeout")).mockResolvedValueOnce(200);
+    await expect(checkSite("https://example.com", probe, sleep)).resolves.toEqual({ status: "online", inconclusive: false });
+    expect(probe).toHaveBeenCalledTimes(2);
+  });
+  it("só marca down após duas falhas", async () => {
+    const probe = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+    const result = await checkSite("https://example.com", probe, sleep);
+    expect(result.status).toBe("down");
+    expect(probe.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+  it("5xx seguido de 200 é online", async () => {
+    const probe = vi.fn().mockResolvedValueOnce(503).mockResolvedValueOnce(200);
+    await expect(checkSite("https://example.com", probe, sleep)).resolves.toMatchObject({ status: "online" });
+  });
+  it("4xx não dispara nova tentativa", async () => {
+    const probe = vi.fn().mockResolvedValue(403);
+    await expect(checkSite("https://example.com", probe, sleep)).resolves.toMatchObject({ status: "warning" });
+    expect(probe).toHaveBeenCalledTimes(1);
+  });
+  it("falha do validador/DNS é inconclusiva e não repete", async () => {
+    const probe = vi.fn().mockRejectedValue(new Error("Não foi possível validar o destino."));
+    await expect(checkSite("https://example.com", probe, sleep)).resolves.toEqual({ status: "down", inconclusive: true });
+    expect(probe).toHaveBeenCalledTimes(1);
   });
 });

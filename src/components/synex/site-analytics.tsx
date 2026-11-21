@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { StatCard, UptimeLight } from "./ui-bits";
 
 type Summary = { visits: number; conversions: number; last_event: string | null; hours: { hour: number; visits: number }[] };
+export const ANALYTICS_SCRIPT_URL = "https://os.synexdigital.com.br/synex-analytics.js";
+export const analyticsSnippet = (siteId: string) => `<script defer src="${ANALYTICS_SCRIPT_URL}" data-site-id="${siteId}"></script>`;
 export function SiteAnalytics({ project, showCode = false }: { project: { id: string; is_ecommerce: boolean; uptime_status: string; uptime_checked_at: string | null }; showCode?: boolean }) {
   const { data, isPending, error } = useQuery({ queryKey: ["site-analytics", project.id], refetchInterval: 60000,
     queryFn: async () => { const result = await supabase.rpc("site_analytics_summary", { _project: project.id }); if (result.error) throw result.error; return result.data as unknown as Summary; } });
-  const code = `<script defer src="https://os-synex.lovable.app/synex-analytics.js" data-site-id="${project.id}"></script>`;
+  const code = analyticsSnippet(project.id);
   const hours = Array.from({ length: 24 }, (_, hour) => ({ hour: `${hour}h`, visits: Number(data?.hours.find((h) => h.hour === hour)?.visits ?? 0) }));
   return <section className="min-w-0 max-w-full space-y-4">
     <h2 className="text-lg font-semibold">Synex Analytics</h2>
