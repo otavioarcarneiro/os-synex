@@ -98,6 +98,8 @@ export const releaseLock = createServerFn({ method: "POST" })
     await supabaseAdmin.from("login_security").upsert({ email: alert.email, failed_count: 0, locked_until: null, admin_locked: false, updated_at: new Date().toISOString() });
     await supabaseAdmin.from("security_alerts").update({ resolved: true, resolved_at: new Date().toISOString() }).eq("email", alert.email).eq("lock_scope", "account").eq("resolved", false);
     const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("email", alert.email).maybeSingle();
+    // Bloqueio por erros no OTP: zera contadores do 2FA (best-effort; tabela pode ainda não existir).
+    if (prof?.id) await (supabaseAdmin as any).from("staff_two_factor").update({ failed_attempts: 0, locked_until: null, code_hash: null, code_expires_at: null, updated_at: new Date().toISOString() }).eq("user_id", prof.id);
     await supabaseAdmin.from("audit_logs").insert({ actor_id: context.userId, target_id: prof?.id ?? null, action: "unlock", reason: data.reason, payload: { email: alert.email, ip: alert.ip } });
     return { ok: true };
   });
@@ -226,4 +228,41 @@ export const sendInvoiceNow = createServerFn({ method: "POST" })
     await assertOwner(context);
     const { sendInvoiceManually } = await import("./billing.server");
     return { sent: await sendInvoiceManually(data.invoiceId) };
+  });
+
+// Pedidos de liberação do 2FA ("Não tenho acesso ao e-mail") ainda pendentes (somente proprietário).
+export const listTwoFactorRequests = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertOwner(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data, error } = await db.from("staff_two_factor").select("user_id,sac_ticket_id,release_requested_at").not("release_requested_at", "is", null).is("manual_release_until", null);
+    if (error || !data?.length) return [] as { userId: string; ticketId: string | null; requestedAt: string }[];
+    return data.map((r: { user_id: string; sac_ticket_id: string | null; release_requested_at: string }) => ({ userId: r.user_id, ticketId: r.sac_ticket_id, requestedAt: r.release_requested_at }));
+  });
+
+// Liberação manual: dispensa o código uma única vez, por 30 minutos; a senha continua exigida.
+export const releaseTwoFactor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ userId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertOwner(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { MANUAL_RELEASE_MS } = await import("./twofactor-rules");
+    const db = supabaseAdmin as any;
+    const { data: row, error } = await db.from("staff_two_factor").select("sac_ticket_id,release_requested_at").eq("user_id", data.userId).maybeSingle();
+    if (error || !row?.release_requested_at) throw new Error("Não há pedido de liberação pendente para este colaborador.");
+    const now = Date.now();
+    const { error: upErr } = await db.from("staff_two_factor").update({
+      manual_release_until: new Date(now + MANUAL_RELEASE_MS).toISOString(), release_requested_at: null,
+      failed_attempts: 0, locked_until: null, code_hash: null, code_expires_at: null, updated_at: new Date(now).toISOString(),
+    }).eq("user_id", data.userId);
+    if (upErr) throw new Error("Não foi possível liberar o acesso.");
+    if (row.sac_ticket_id) {
+      await supabaseAdmin.from("support_messages").insert({ ticket_id: row.sac_ticket_id, role: "assistant", body: "Acesso liberado pelo Proprietário. Faça login novamente: a verificação por e-mail será dispensada uma vez nos próximos 30 minutos." });
+      await supabaseAdmin.from("support_tickets").update({ status: "closed" }).eq("id", row.sac_ticket_id);
+    }
+    await supabaseAdmin.from("audit_logs").insert({ actor_id: context.userId, target_id: data.userId, action: "unlock", reason: "Liberação manual do 2FA pelo Proprietário", payload: { kind: "2fa" } });
+    return { ok: true };
   });

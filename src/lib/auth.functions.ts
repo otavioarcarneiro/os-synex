@@ -2,16 +2,22 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isAuthorizedProfile } from "./access-rules";
+import { isPasswordOnlyAmr, isStaffRole, requiresOtp, type TwoFactorResult } from "./twofactor-rules";
 
 export type LoginResult =
   | { status: "ok"; access_token: string; refresh_token: string; session_key: string }
   | { status: "invalid"; attemptsLeft: number }
   | { status: "cooldown"; until: string }
   | { status: "admin_locked" }
-  | { status: "blocked"; message: string };
+  | { status: "blocked"; message: string }
+  | TwoFactorResult;
 
 export const secureLogin = createServerFn({ method: "POST" })
-  .inputValidator((d) => z.object({ email: z.string().trim().email().max(255), password: z.string().min(1).max(200) }).parse(d))
+  .inputValidator((d) => z.object({
+    email: z.string().trim().email().max(255), password: z.string().min(1).max(200),
+    otp: z.string().regex(/^\d{6}$/, "O código tem 6 dígitos.").optional(),
+    action: z.enum(["login", "resend", "no_email"]).default("login"),
+  }).parse(d))
   .handler(async ({ data }): Promise<LoginResult> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { publicClient, requestFingerprint, isOwnerEmail } = await import("./server-helpers.server");
@@ -60,6 +66,15 @@ export const secureLogin = createServerFn({ method: "POST" })
       }
     }
 
+    // 2FA por e-mail: equipe interna (Proprietário, Sócio, Administrador) a partir do 2º acesso.
+    // Os tokens só são devolvidos depois do código; a sessão criada aqui é descartada sem revogar as demais.
+    const { twoFactorGate, productionDeps } = await import("./twofactor.server");
+    const gate = await twoFactorGate({ userId, email, owner, action: data.action, otp: data.otp, fp }, await productionDeps());
+    if (gate) {
+      await client.auth.signOut({ scope: "local" });
+      return gate;
+    }
+
     // Do not overwrite an owner's concurrent account lock on successful login.
     const session_key = crypto.randomUUID();
     if (!owner) await supabaseAdmin.from("active_sessions").delete().eq("user_id", userId);
@@ -83,6 +98,15 @@ export const registerSession = createServerFn({ method: "POST" })
     if (!isOwnerEmail(email)) {
       const { data: settings } = await supabaseAdmin.from("system_settings").select("maintenance_mode").eq("id",1).single();
       if (settings?.maintenance_mode) throw new Error("O Synex OS está em manutenção.");
+    }
+    // Equipe interna do 2º acesso em diante: sessão obtida só com senha precisa passar pelo código por e-mail.
+    if (isPasswordOnlyAmr((context.claims as { amr?: unknown }).amr)) {
+      const { supabaseRepo } = await import("./twofactor.server");
+      const repo = supabaseRepo(supabaseAdmin);
+      if (isStaffRole(await repo.roles(context.userId))) {
+        const loaded = await repo.load(context.userId);
+        if (!("missing" in loaded) && requiresOtp(true, loaded.state.completedLogins)) throw new Error("Entre novamente com a verificação em duas etapas.");
+      }
     }
     const session_key = crypto.randomUUID();
     if (!isOwnerEmail(email)) await supabaseAdmin.from("active_sessions").delete().eq("user_id", context.userId);

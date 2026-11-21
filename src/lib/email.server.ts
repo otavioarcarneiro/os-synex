@@ -2,6 +2,8 @@
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 export const OWNER_ALERT_EMAIL = "otavio.arcarneiro@gmail.com";
 export const FROM_SUPORTE = "Synex Suporte <suporte@synexdigital.com.br>";
+export const FROM_ACESSO = "Synex Acesso <acesso@synexdigital.com.br>";
+export const FROM_SAC = "Synex SAC <sac@synexdigital.com.br>";
 export const FROM_UPTIME = "Synex Uptime <uptime@synexdigital.com.br>";
 export const FROM_FINANCEIRO = "Synex Financeiro <financeiro@synexdigital.com.br>";
 export const PIX_KEY = "synex.presence@gmail.com";
@@ -84,4 +86,30 @@ export function thanksHtml(i: Inv) {
     `Confirmamos o pagamento de <b>${brl(i.amount)}</b> referente a <b>${esc(i.project)}</b> (vencimento ${dateBR(i.due_date)}).`,
     `Obrigado pela confiança!`,
   ]);
+}
+
+// 2FA por e-mail (equipe interna): código de 6 dígitos válido por 10 minutos, enviado por acesso@.
+export function otpHtml(code: string) {
+  return layout("Seu código de verificação", [
+    `Use o código abaixo para concluir seu acesso ao Synex OS:`,
+    `<span style="display:inline-block;background:#1A1E27;border:1px solid #3478F6;border-radius:8px;padding:12px 20px;font-family:monospace;font-size:30px;font-weight:700;letter-spacing:8px;color:#ffffff">${esc(code)}</span>`,
+    `O código expira em <b>10 minutos</b> e só pode ser usado uma vez.`,
+    `Se você não tentou entrar, ignore este e-mail e troque sua senha. Nunca compartilhe este código.`,
+  ]);
+}
+export async function sendOtpEmail(to: string, code: string) {
+  await sendEmail(FROM_ACESSO, to, "Seu código de verificação Synex", otpHtml(code));
+}
+
+// "Não tenho acesso ao e-mail": avisa o Proprietário (sac@) com atalho para a Central, onde ele libera manualmente.
+export function twoFactorHelpHtml(p: { name: string | null; email: string; ip?: string; device?: string; browser?: string; os?: string }) {
+  return layout("Colaborador sem acesso ao e-mail", [
+    `<b>${esc(p.name || p.email)}</b> (${esc(p.email)}) informou que não tem acesso ao e-mail e não consegue concluir a verificação em duas etapas.`,
+    `IP: ${esc(p.ip ?? "-")} · Dispositivo: ${esc([p.device, p.os, p.browser].filter(Boolean).join(" / ") || "-")}`,
+    `Horário: ${nowBR()}`,
+    `Só libere se você reconhecer a solicitação. A liberação vale por 30 minutos e dispensa o código uma única vez; a senha continua sendo exigida.`,
+  ], { label: "Abrir Central e liberar acesso", url: `${APP_URL}/app/notificacoes` });
+}
+export async function sendTwoFactorHelpEmail(p: { name: string | null; email: string; fp: { ip?: string; device?: string; os?: string; browser?: string } }) {
+  await sendEmail(FROM_SAC, OWNER_ALERT_EMAIL, `Pedido de liberação de acesso: ${p.name || p.email}`, twoFactorHelpHtml({ name: p.name, email: p.email, ...p.fp }));
 }

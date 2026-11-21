@@ -5,6 +5,7 @@ export type Severity = "danger" | "warning" | "info" | "success";
 export type NotificationHref = "/app/projetos" | "/app/restrita" | "/app/financeiro" | "/app/suporte";
 export type NotificationItem = {
   id: string; kind: NotificationKind; severity: Severity; title: string; detail: string; at: string; href: NotificationHref;
+  twoFactorUserId?: string; // pedido de liberação do 2FA: habilita o botão "Liberar acesso"
 };
 
 export const KIND_LABEL: Record<NotificationKind, string> = { uptime: "Uptime", login: "Login", invoice: "Faturas", sac: "SAC" };
@@ -60,9 +61,12 @@ export function invoiceNotifications(rows: InvoiceRow[]): NotificationItem[] {
   return out;
 }
 
-export function sacNotifications(tickets: TicketRow[]): NotificationItem[] {
+export type TwoFactorRequest = { userId: string; ticketId: string | null };
+export function sacNotifications(tickets: TicketRow[], requests: TwoFactorRequest[] = []): NotificationItem[] {
   return tickets.map((t) => {
     const who = t.client?.full_name || t.client?.email || "Cliente";
+    const req = requests.find((r) => r.ticketId === t.id);
+    if (req && t.status === "human") return { id: `sac:${t.id}`, kind: "sac", href: "/app/suporte", severity: "danger", title: "Colaborador sem acesso ao e-mail (2FA)", detail: `${who} pediu liberação do acesso`, at: t.created_at, twoFactorUserId: req.userId } as NotificationItem;
     if (t.status === "human") return { id: `sac:${t.id}`, kind: "sac", href: "/app/suporte", severity: "danger", title: "Pedido do SAC aguardando você", detail: who, at: t.created_at } as NotificationItem;
     if (t.status === "ai") return { id: `sac:${t.id}`, kind: "sac", href: "/app/suporte", severity: "info", title: "Atendimento em andamento com a IA", detail: who, at: t.created_at } as NotificationItem;
     return { id: `sac:${t.id}`, kind: "sac", href: "/app/suporte", severity: "success", title: "Atendimento encerrado", detail: who, at: t.created_at } as NotificationItem;

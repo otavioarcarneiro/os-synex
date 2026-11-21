@@ -1,10 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { listTwoFactorRequests, releaseTwoFactor } from "@/lib/admin.functions";
 import { Bell, CreditCard, Headset, Globe, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageTitle } from "@/components/synex/ui-bits";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   KIND_LABEL, invoiceNotifications, loginNotifications, sacNotifications, sortNotifications, uptimeNotifications,
@@ -20,9 +23,12 @@ const KINDS: NotificationKind[] = ["uptime", "login", "invoice", "sac"];
 
 function Notifications() {
   const [filter, setFilter] = useState<NotificationKind | "all">("all");
+  const qc = useQueryClient();
+  const [releasing, setReleasing] = useState<string | null>(null);
   const { data: items = [], isPending, error } = useQuery({
     queryKey: ["notifications"], refetchInterval: 30000,
     queryFn: async (): Promise<NotificationItem[]> => {
+      const requests = await listTwoFactorRequests().catch(() => []);
       const [sites, alerts, invoices, tickets] = await Promise.all([
         supabase.from("projects").select("id,name,url,uptime_status,uptime_checked_at").eq("kind", "site").in("uptime_status", ["down", "warning"]),
         supabase.from("security_alerts").select("id,email,full_name,attempts,created_at,lock_scope,resolved").order("created_at", { ascending: false }).limit(50),
@@ -37,7 +43,7 @@ function Notifications() {
         ...uptimeNotifications(sites.data ?? []),
         ...loginNotifications(alerts.data ?? []),
         ...invoiceNotifications((invoices.data ?? []) as never),
-        ...sacNotifications(withClient),
+        ...sacNotifications(withClient, requests),
       ]);
     },
   });
@@ -62,6 +68,26 @@ function Notifications() {
               const Icon = ICON[n.kind];
               return (
                 <li key={n.id}>
+                  {n.twoFactorUserId ? (
+                    <div className={cn("flex items-start gap-3 rounded-xl border border-white/10 border-l-4 bg-[#222733] p-4 shadow-sm", ACCENT[n.severity])}>
+                      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2"><p className="font-medium">{n.title}</p><Badge variant="outline" className={BADGE[n.severity]}>{KIND_LABEL[n.kind]}</Badge></div>
+                        <p className="mt-1 break-words text-sm text-muted-foreground">{n.detail}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Button size="sm" disabled={releasing === n.twoFactorUserId} onClick={async () => {
+                            if (!window.confirm("Liberar o acesso deste colaborador? Ele poderá entrar uma vez sem o código por e-mail, nos próximos 30 minutos (a senha continua exigida). Só libere se você reconhecer o pedido.")) return;
+                            setReleasing(n.twoFactorUserId!);
+                            try { await releaseTwoFactor({ data: { userId: n.twoFactorUserId! } }); toast.success("Acesso liberado por 30 minutos"); await qc.invalidateQueries({ queryKey: ["notifications"] }); }
+                            catch (e) { toast.error(e instanceof Error ? e.message : "Não foi possível liberar"); }
+                            finally { setReleasing(null); }
+                          }}>{releasing === n.twoFactorUserId ? "Liberando…" : "Liberar acesso"}</Button>
+                          <Button size="sm" variant="outline" asChild><Link to={n.href}>Abrir atendimento</Link></Button>
+                        </div>
+                      </div>
+                      {n.at && <span className="shrink-0 font-mono text-xs text-muted-foreground">{new Date(n.at).toLocaleString("pt-BR")}</span>}
+                    </div>
+                  ) : (
                   <Link to={n.href} className={cn("flex items-start gap-3 rounded-xl border border-white/10 border-l-4 bg-[#222733] p-4 shadow-sm transition-colors hover:bg-[#2a3040]", ACCENT[n.severity])}>
                     <Icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
@@ -70,6 +96,7 @@ function Notifications() {
                     </div>
                     {n.at && <span className="shrink-0 font-mono text-xs text-muted-foreground">{new Date(n.at).toLocaleString("pt-BR")}</span>}
                   </Link>
+                  )}
                 </li>
               );
             })}

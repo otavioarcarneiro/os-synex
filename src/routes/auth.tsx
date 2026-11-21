@@ -71,7 +71,12 @@ function LoginPage() {
   const [state, setState] = useState<LoginResult | null>(null);
   const [cooldownUntil, setCooldownUntil] = useState<string | null>(null);
   const [forgotOpen, setForgotOpen] = useState(false);
+  const [step, setStep] = useState<"credentials" | "otp">("credentials");
+  const [otp, setOtp] = useState("");
+  const [info, setInfo] = useState<{ resendAt: string; codesLeft: number; limitReached: boolean; expiresAt: string | null } | null>(null);
+  const [helpSent, setHelpSent] = useState(false);
   const countdown = useCountdown(cooldownUntil);
+  const resendCountdown = useCountdown(info?.resendAt ?? null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => { if (data.user) routeAfterLogin(navigate); });
@@ -80,11 +85,10 @@ function LoginPage() {
   const locked = state?.status === "admin_locked";
   const disabled = loading || locked || !!countdown;
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function run(extra: { otp?: string; action?: "login" | "resend" | "no_email" } = {}) {
     setLoading(true);
     try {
-      const res = await secureLogin({ data: { email, password } });
+      const res = await secureLogin({ data: { email, password, ...extra } });
       setState(res);
       if (res.status === "ok") {
         await supabase.auth.setSession({ access_token: res.access_token, refresh_token: res.refresh_token });
@@ -92,16 +96,40 @@ function LoginPage() {
         localStorage.setItem(REMEMBER_KEY, remember ? "1" : "0");
         sessionStorage.setItem(ALIVE_KEY, "1");
         await routeAfterLogin(navigate);
+      } else if (res.status === "otp_required" || res.status === "otp_invalid") {
+        setStep("otp");
+        setInfo({ resendAt: res.resendAt, codesLeft: res.codesLeft, limitReached: res.limitReached, expiresAt: res.expiresAt });
+        if (res.status === "otp_invalid" || (res.status === "otp_required" && res.sent)) setOtp("");
+        if (res.status === "otp_required" && res.sent) toast.success("Código enviado para o seu e-mail");
+      } else if (res.status === "otp_cooldown") {
+        setStep("otp");
+        setCooldownUntil(res.until);
+      } else if (res.status === "help_sent") {
+        setStep("otp");
+        setHelpSent(true);
       } else if (res.status === "cooldown") {
+        setStep("credentials");
         setCooldownUntil(res.until);
       } else if (res.status === "blocked") {
         toast.error(res.message);
+      } else {
+        setStep("credentials");
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível entrar");
     } finally {
       setLoading(false);
     }
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (step === "otp") void run({ otp });
+    else void run({ action: "login" });
+  }
+
+  function backToCredentials() {
+    setStep("credentials"); setState(null); setOtp(""); setInfo(null); setHelpSent(false); setCooldownUntil(null);
   }
 
   return (
@@ -119,6 +147,8 @@ function LoginPage() {
               <h1 className="text-2xl font-semibold">Login</h1>
               <p className="mt-1 text-sm text-muted-foreground">Synex OS · CRM e Portal de Clientes</p>
             </div>
+            {step === "credentials" && (
+              <>
             <div className="space-y-2">
               <Label htmlFor="email" className="text-muted-foreground">E-mail</Label>
               <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)}
@@ -136,6 +166,45 @@ function LoginPage() {
               </div>
             </div>
 
+              </>
+            )}
+            {step === "otp" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="otp" className="text-muted-foreground">Código de verificação</Label>
+                  <Input id="otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000"
+                    className="h-12 border-transparent bg-field text-center font-mono text-2xl tracking-[0.5em] focus-visible:border-primary" />
+                  <p className="text-center text-xs text-muted-foreground">Enviamos um código de 6 dígitos para o seu e-mail. Ele expira em 10 minutos.</p>
+                </div>
+                {state?.status === "otp_invalid" && state.reason === "wrong" && !countdown && (
+                  <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
+                    Código incorreto.{state.warning ? " Atenção: mais um erro bloqueará novas tentativas por 2 minutos, e os próximos bloqueios serão maiores." : ""}
+                  </p>
+                )}
+                {state?.status === "otp_invalid" && state.reason === "expired" && (
+                  <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">Código expirado ou indisponível. Peça um novo código.</p>
+                )}
+                {info?.limitReached && (
+                  <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">Limite de 3 códigos atingido. Use o último código enviado, tente de novo mais tarde ou peça ajuda ao SAC.</p>
+                )}
+                {helpSent && (
+                  <p className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">Pedido enviado ao SAC. O Proprietário foi avisado e vai analisar a liberação do seu acesso.</p>
+                )}
+                <div className="flex flex-col items-center gap-2 text-sm">
+                  <button type="button" disabled={loading || !!resendCountdown || !!info?.limitReached || !!countdown} onClick={() => run({ action: "resend" })}
+                    className="text-primary underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline">
+                    {resendCountdown ? `Reenviar código em ${resendCountdown}` : "Reenviar código"}
+                  </button>
+                  {info && !info.limitReached && <span className="text-xs text-muted-foreground">{info.codesLeft > 1 ? `Você ainda pode pedir ${info.codesLeft - 1} reenvio(s).` : "Este foi o último código disponível."}</span>}
+                  <button type="button" disabled={loading || helpSent} onClick={() => run({ action: "no_email" })}
+                    className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50">
+                    Não tenho acesso ao e-mail
+                  </button>
+                  <button type="button" onClick={backToCredentials} className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Voltar</button>
+                </div>
+              </div>
+            )}
             {state?.status === "invalid" && !countdown && (
               <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
                 Credenciais inválidas. {state.attemptsLeft > 0 ? `${state.attemptsLeft} tentativa(s) antes do bloqueio temporário.` : ""}
@@ -153,19 +222,21 @@ function LoginPage() {
               </div>
             )}
 
-            <label className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <Checkbox checked={remember} onCheckedChange={(v) => setRemember(!!v)} /> Lembrar de mim
-            </label>
+            {step === "credentials" && (
+              <label className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Checkbox checked={remember} onCheckedChange={(v) => setRemember(!!v)} /> Lembrar de mim
+              </label>
+            )}
             <div className="flex justify-center">
-              <Button type="submit" disabled={disabled} className="h-11 min-w-40 rounded-full bg-brand-gradient px-8 text-base font-semibold shadow-glow transition-all hover:brightness-110 active:scale-[0.98]">
-                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Entrar"}
+              <Button type="submit" disabled={disabled || (step === "otp" && otp.length !== 6)} className="h-11 min-w-40 rounded-full bg-brand-gradient px-8 text-base font-semibold shadow-glow transition-all hover:brightness-110 active:scale-[0.98]">
+                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : step === "otp" ? "Verificar código" : "Entrar"}
               </Button>
             </div>
-            <div className="text-center">
+            {step === "credentials" && <div className="text-center">
               <button type="button" onClick={() => setForgotOpen(true)} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
                 Esqueceu sua senha?
               </button>
-            </div>
+            </div>}
             <p className="pt-6 text-center text-xs text-muted-foreground/70">
               Acesso restrito a usuários cadastrados pela Synex Digital Presence. Todas as operações são registradas.
             </p>
