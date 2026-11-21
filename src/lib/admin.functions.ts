@@ -217,3 +217,13 @@ export const notifyInvoicePaid = createServerFn({ method: "POST" })
     const { sendPaymentThanks } = await import("./billing.server");
     return { sent: await sendPaymentThanks(data.invoiceId) };
   });
+
+// Cobrança manual imediata de uma fatura pendente (somente proprietário).
+export const sendInvoiceNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ invoiceId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertOwner(context);
+    const { sendInvoiceManually } = await import("./billing.server");
+    return { sent: await sendInvoiceManually(data.invoiceId) };
+  });

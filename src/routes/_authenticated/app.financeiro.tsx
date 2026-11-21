@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Receipt } from "lucide-react";
+import { CheckCircle2, Receipt, Send } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/hooks/use-me";
-import { generateMonthInvoices, notifyInvoicePaid } from "@/lib/admin.functions";
+import { generateMonthInvoices, notifyInvoicePaid, sendInvoiceNow } from "@/lib/admin.functions";
 import { brl, monthlyFee } from "@/lib/pricing";
 import { PageTitle, Panel, StatCard, PIX_KEY } from "@/components/synex/ui-bits";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ function Finance() {
   const { data: me } = useMe();
   const qc = useQueryClient();
   const isOwner = me?.primaryRole === "owner";
+  const [sending, setSending] = useState<string | null>(null);
   const { data } = useQuery({
     queryKey: ["finance"],
     queryFn: async () => {
@@ -58,6 +60,15 @@ function Finance() {
                   <Badge variant="outline" className={i.status === "paid" ? "border-success text-success" : overdue ? "border-danger text-danger" : "border-warning text-warning"}>
                     {i.status === "paid" ? "Pago" : overdue ? "Vencida" : "A vencer"}
                   </Badge>
+                  {isOwner && i.status === "pending" && (
+                    <Button size="sm" variant="outline" disabled={sending === i.id} onClick={async () => {
+                      if (!window.confirm(`Enviar a fatura de ${i.project?.name} agora para ${i.project?.client?.email ?? "o cliente"}?`)) return;
+                      setSending(i.id);
+                      try { await sendInvoiceNow({ data: { invoiceId: i.id } }); toast.success("Fatura enviada ao cliente"); }
+                      catch (e) { toast.error(e instanceof Error ? e.message : "Não foi possível enviar a fatura"); }
+                      finally { setSending(null); }
+                    }}><Send className="h-4 w-4" /> {sending === i.id ? "Enviando…" : "Enviar fatura"}</Button>
+                  )}
                   {isOwner && i.status === "pending" && (
                     <Button size="sm" variant="secondary" onClick={async () => {
                       const { error } = await supabase.from("invoices").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", i.id);

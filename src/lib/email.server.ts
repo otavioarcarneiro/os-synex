@@ -4,7 +4,7 @@ export const OWNER_ALERT_EMAIL = "otavio.arcarneiro@gmail.com";
 export const FROM_SUPORTE = "Synex Suporte <suporte@synexdigital.com.br>";
 export const FROM_UPTIME = "Synex Uptime <uptime@synexdigital.com.br>";
 export const FROM_FINANCEIRO = "Synex Financeiro <financeiro@synexdigital.com.br>";
-const PIX_KEY = "synex.presence@gmail.com";
+export const PIX_KEY = "synex.presence@gmail.com";
 const APP_URL = "https://os.synexdigital.com.br";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -65,6 +65,16 @@ export function reminderHtml(i: Inv, today: boolean) {
     `Olá, ${esc(i.name)}.`,
     `A mensalidade de <b>${esc(i.project)}</b> no valor de <b>${brl(i.amount)}</b> ${today ? "vence hoje" : "vence em"} ${dateBR(i.due_date)}.`,
     `Pagamento via PIX: <b>${PIX_KEY}</b>`,
+    `Se já pagou, desconsidere esta mensagem.`,
+  ]);
+}
+// Cobrança manual ("Enviar fatura"): dados da fatura + chave PIX, disparo imediato.
+export function invoiceHtml(i: Inv, overdue: boolean) {
+  return layout(overdue ? "Fatura Synex em atraso" : "Sua fatura Synex", [
+    `Olá, ${esc(i.name)}.`,
+    `Segue a mensalidade de <b>${esc(i.project)}</b>:`,
+    `Valor: <b>${brl(i.amount)}</b><br>Vencimento: <b>${dateBR(i.due_date)}</b>${overdue ? " (vencida)" : ""}`,
+    `Pagamento via PIX (chave e-mail): <b>${PIX_KEY}</b>`,
     `Se já pagou, desconsidere esta mensagem.`,
   ]);
 }

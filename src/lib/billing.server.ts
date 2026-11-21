@@ -1,4 +1,4 @@
-import { FROM_FINANCEIRO, reminderHtml, sendEmail, thanksHtml } from "./email.server";
+import { FROM_FINANCEIRO, dateBR, invoiceHtml, reminderHtml, sendEmail, thanksHtml } from "./email.server";
 
 const ymd = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 const SELECT = "id,amount,due_date,status,reminder_sent_at,due_notice_sent_at,thanks_sent_at,project:projects(name,client:profiles!projects_client_id_fkey(email,full_name))";
@@ -40,4 +40,19 @@ export async function sendPaymentThanks(invoiceId: string) {
   if (!claimed?.length) return false;
   try { await sendEmail(FROM_FINANCEIRO, to, "Pagamento confirmado — obrigado!", thanksHtml(inv)); return true; }
   catch (e) { await db.from("invoices").update({ thanks_sent_at: null }).eq("id", invoiceId); throw e; }
+}
+
+// Cobrança manual: envio imediato da fatura pendente ao cliente.
+// Não altera reminder_sent_at / due_notice_sent_at / thanks_sent_at: os agendamentos automáticos seguem intactos.
+export async function sendInvoiceManually(invoiceId: string) {
+  const db = await admin();
+  const { data: row, error } = await db.from("invoices").select(SELECT).eq("id", invoiceId).maybeSingle();
+  if (error || !row) throw new Error("Fatura não encontrada.");
+  if (row.status !== "pending") throw new Error("Só é possível enviar faturas pendentes.");
+  const { to, inv } = info(row);
+  if (!to) throw new Error("O cliente deste projeto não tem e-mail cadastrado.");
+  const overdue = row.due_date < ymd(new Date());
+  const subject = overdue ? `Fatura Synex em atraso — vencimento ${dateBR(row.due_date)}` : `Fatura Synex — vencimento ${dateBR(row.due_date)}`;
+  await sendEmail(FROM_FINANCEIRO, to, subject, invoiceHtml(inv, overdue));
+  return true;
 }
