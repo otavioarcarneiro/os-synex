@@ -92,46 +92,52 @@ async function request<T>(path: string): Promise<T> {
   reserveSlot();
 
   const controller = new AbortController();
+  // O timer cobre toda a operação HTTP: cabeçalhos + leitura do corpo.
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  let res: Response;
   try {
-    res = await fetch(`${UPTIMEROBOT_BASE_URL}${path}`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
-      redirect: "manual",
-      signal: controller.signal,
-    });
-  } catch (err) {
-    if (controller.signal.aborted) {
-      throw new UptimeRobotError("timeout", "O UptimeRobot não respondeu a tempo.");
+    let res: Response;
+    try {
+      res = await fetch(`${UPTIMEROBOT_BASE_URL}${path}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
+        redirect: "manual",
+        signal: controller.signal,
+      });
+    } catch {
+      if (controller.signal.aborted) {
+        throw new UptimeRobotError("timeout", "O UptimeRobot não respondeu a tempo.");
+      }
+      throw new UptimeRobotError("network", "Falha de rede ao contatar o UptimeRobot.");
     }
-    throw new UptimeRobotError("network", "Falha de rede ao contatar o UptimeRobot.");
+
+    applyRateLimitHeaders(res.headers);
+
+    if (res.status === 429) {
+      const retry =
+        parseSeconds(res.headers.get("retry-after")) ??
+        parseSeconds(res.headers.get("x-ratelimit-reset")) ??
+        60;
+      blockedUntil = Math.max(blockedUntil, Date.now() + retry * 1000);
+      throw new UptimeRobotError("rate_limited", "UptimeRobot recusou por excesso de requisições.", 429, retry);
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new UptimeRobotError("unauthorized", "Chave do UptimeRobot inválida ou sem permissão.", res.status);
+    }
+    if (!res.ok) {
+      // Corpo da resposta não é repassado para evitar vazar dados sensíveis.
+      throw new UptimeRobotError("http_error", `UptimeRobot respondeu com erro HTTP ${res.status}.`, res.status);
+    }
+
+    try {
+      return (await res.json()) as T;
+    } catch {
+      if (controller.signal.aborted) {
+        throw new UptimeRobotError("timeout", "O UptimeRobot não respondeu a tempo.");
+      }
+      throw new UptimeRobotError("invalid_response", "Resposta inválida do UptimeRobot.", res.status);
+    }
   } finally {
     clearTimeout(timer);
-  }
-
-  applyRateLimitHeaders(res.headers);
-
-  if (res.status === 429) {
-    const retry =
-      parseSeconds(res.headers.get("retry-after")) ??
-      parseSeconds(res.headers.get("x-ratelimit-reset")) ??
-      60;
-    blockedUntil = Math.max(blockedUntil, Date.now() + retry * 1000);
-    throw new UptimeRobotError("rate_limited", "UptimeRobot recusou por excesso de requisições.", 429, retry);
-  }
-  if (res.status === 401 || res.status === 403) {
-    throw new UptimeRobotError("unauthorized", "Chave do UptimeRobot inválida ou sem permissão.", res.status);
-  }
-  if (!res.ok) {
-    // Corpo da resposta não é repassado para evitar vazar dados sensíveis.
-    throw new UptimeRobotError("http_error", `UptimeRobot respondeu com erro HTTP ${res.status}.`, res.status);
-  }
-
-  try {
-    return (await res.json()) as T;
-  } catch {
-    throw new UptimeRobotError("invalid_response", "Resposta inválida do UptimeRobot.", res.status);
   }
 }
 
