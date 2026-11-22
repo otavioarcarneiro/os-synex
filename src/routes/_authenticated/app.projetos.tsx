@@ -1,3 +1,4 @@
+
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -90,18 +91,18 @@ function Projects() {
                   {p.kind === "site" && <Button size="sm" variant="ghost" onClick={() => setAnalyticsFor(p.id)}><ChartColumn className="h-4 w-4" /> Analytics</Button>}
                   {canWrite && <Button size="sm" variant="ghost" title="Editar projeto" aria-label="Editar projeto" onClick={() => setEditFor(p.id)}><Pencil className="h-4 w-4" /></Button>}
                   <Button
-  size="sm"
-  variant="ghost"
-  onClick={() => {
-    if (p.google_drive_url) {
-      window.open(p.google_drive_url, "_blank", "noopener,noreferrer");
-    } else {
-      toast.info("Link do Google Drive não cadastrado.");
-    }
-  }}
->
-  <FileText className="h-4 w-4" /> Docs
-</Button>
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      if (p.google_drive_url) {
+                        window.open(p.google_drive_url, "_blank", "noopener,noreferrer");
+                      } else {
+                        toast.info("Link do Google Drive não cadastrado.");
+                      }
+                    }}
+                  >
+                    <FileText className="h-4 w-4" /> Docs
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -123,7 +124,7 @@ function EditProjectDialog({ project, onClose, isOwner }: { project: any | null;
   const [f, setF] = useState({
     client_id: "", name: "", kind: "site", url: "", instagram_handle: "",
     publish_status: "em_desenvolvimento", setup_price: "0", contract_start: "",
-    billing_enabled: false, ga4_property_id: "", is_ecommerce: false, google_drive_url: "",
+    billing_enabled: false, is_ecommerce: false, google_drive_url: "",
   });
 
   useEffect(() => {
@@ -138,7 +139,6 @@ function EditProjectDialog({ project, onClose, isOwner }: { project: any | null;
       setup_price: String(project.setup_price ?? 0),
       contract_start: project.contract_start ?? "",
       billing_enabled: !!project.billing_enabled,
-      ga4_property_id: project.ga4_property_id ?? "",
       is_ecommerce: !!project.is_ecommerce,
       google_drive_url: project.google_drive_url ?? "",
     });
@@ -181,19 +181,18 @@ function EditProjectDialog({ project, onClose, isOwner }: { project: any | null;
 
     setSaving(true);
     const updates = {
-  client_id: f.client_id,
-  name: f.name.trim(),
-  kind: f.kind,
-  url: f.url.trim() || null,
-  instagram_handle: f.instagram_handle.trim().replace(/^@+/, "") || null,
-  publish_status: f.publish_status.trim() || "em_desenvolvimento",
-  setup_price: setupPrice,
-  contract_start: f.contract_start,
-  ga4_property_id: f.ga4_property_id.trim() || null,
-  is_ecommerce: f.kind === "site" && f.is_ecommerce,
-  google_drive_url: f.google_drive_url.trim() || null,
-  ...(isOwner ? { billing_enabled: f.billing_enabled } : {}),
-};
+      client_id: f.client_id,
+      name: f.name.trim(),
+      kind: f.kind,
+      url: f.url.trim() || null,
+      instagram_handle: f.instagram_handle.trim().replace(/^@+/, "") || null,
+      publish_status: f.publish_status.trim() || "em_desenvolvimento",
+      setup_price: setupPrice,
+      contract_start: f.contract_start,
+      is_ecommerce: f.kind === "site" && f.is_ecommerce,
+      google_drive_url: f.google_drive_url.trim() || null,
+      ...(isOwner ? { billing_enabled: f.billing_enabled } : {}),
+    };
 
     const { error } = await supabase.from("projects").update(updates).eq("id", project.id);
     setSaving(false);
@@ -237,7 +236,6 @@ function EditProjectDialog({ project, onClose, isOwner }: { project: any | null;
             <div className="space-y-1"><Label>Início do contrato</Label><Input type="date" value={f.contract_start} onChange={(e) => setF({ ...f, contract_start: e.target.value })} className="bg-field" /></div>
           </div>
 
-          <div className="space-y-1"><Label>GA4 Property ID</Label><Input value={f.ga4_property_id} onChange={(e) => setF({ ...f, ga4_property_id: e.target.value })} className="bg-field" /></div>
           <div className="space-y-1">
             <Label>Link da pasta Google Drive (opcional)</Label>
             <Input value={f.google_drive_url} onChange={(e) => setF({ ...f, google_drive_url: e.target.value })} placeholder="https://drive.google.com/..." className="bg-field" />
