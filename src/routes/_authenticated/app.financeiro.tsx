@@ -49,18 +49,19 @@ function Finance() {
     const chosen = c.projects.filter((project) => projectIds.includes(project.id));
     if (!chosen.length) return;
     const monthlyTotal = chosen.reduce((sum, project) => sum + project.fee, 0);
-    if (!window.confirm(`Enviar uma cobrança com ${chosen.length} projeto(s), no total de ${brl(monthlyTotal)}, para ${c.name} (${c.email})?`)) return;
+    if (!window.confirm(`Registrar como em aberto e enviar a fatura de ${chosen.length} projeto(s), no total de ${brl(monthlyTotal)}, para ${c.name} (${c.email})?\n\nProjetos que já têm fatura neste mês não são duplicados.`)) return;
     setSendingClient(c.id);
     try {
       const r = await sendSelectedClientInvoices({ data: { clientId: c.id, projectIds } });
-      toast.success(`Cobrança de ${r.count} projeto(s) enviada para ${c.name} (${brl(r.total)})`);
+      toast.success(`Fatura de ${brl(r.total)} ${r.created ? "registrada em aberto e " : ""}enviada para ${c.name}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível enviar a cobrança");
+      toast.error(e instanceof Error ? e.message : "Não foi possível enviar a fatura");
     } finally {
       setSendingClient(null);
+      await refresh(); // atualiza em aberto, histórico do cliente e totais (mesmo se o e-mail falhar após registrar)
+      void qc.invalidateQueries({ queryKey: ["dashboard"] });
     }
   }
-
   async function sendOne(i: ClientInvoice, c: ClientRow) {
     if (!window.confirm(`Enviar a fatura de ${i.projectName} agora para ${c.email}?`)) return;
     setSendingInvoice(i.id);

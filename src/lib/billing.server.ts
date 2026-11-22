@@ -9,7 +9,7 @@ import {
   sendEmail,
   thanksHtml,
 } from "./email.server";
-import { monthlyFee } from "./pricing";
+import { planManualInvoices } from "./manual-invoice";
 
 const ymd = (d: Date) =>
   d.toLocaleDateString("en-CA", {
@@ -155,182 +155,58 @@ export async function sendPaymentThanks(invoiceId: string) {
   }
 }
 
-// Função antiga mantida para compatibilidade com admin.functions.ts.
-export async function sendClientInvoicesManually(clientId: string) {
+// "Enviar fatura": REGISTRA a fatura do mês como em aberto (1 por projeto/mês, sem duplicar) e envia o e-mail ao cliente.
+// A fatura registrada entra nos totais em aberto, aparece no histórico do cliente e pode ser baixada ("Marcar pago"),
+// o que dispara o agradecimento e soma no total recebido. Não altera reminder_sent_at / due_notice_sent_at / thanks_sent_at.
+async function registerAndSendInvoices(clientId: string, projectIds: string[] | "billing") {
   const db = await admin();
+  const { data: prof, error: profileError } = await db.from("profiles").select("full_name,email").eq("id", clientId).maybeSingle();
+  if (profileError || !prof) throw new Error("Cliente não encontrado.");
+  if (!prof.email) throw new Error("O cliente não tem e-mail cadastrado.");
 
-  const { data: prof, error: profileError } = await db
-    .from("profiles")
-    .select("full_name,email")
-    .eq("id", clientId)
-    .maybeSingle();
-
-  if (profileError || !prof) {
-    throw new Error("Cliente não encontrado.");
+  let uniqueIds: string[] = [];
+  let query = db.from("projects").select("id,name,contract_start").eq("client_id", clientId).order("name", { ascending: true });
+  if (projectIds === "billing") query = query.eq("billing_enabled", true);
+  else {
+    if (!projectIds.length) throw new Error("Selecione pelo menos um projeto.");
+    uniqueIds = [...new Set(projectIds)];
+    query = query.in("id", uniqueIds);
   }
+  const { data: projects, error: projectsError } = await query;
+  if (projectsError) throw new Error("Não foi possível carregar os projetos do cliente.");
+  if (!projects?.length) throw new Error(projectIds === "billing" ? "Este cliente não tem projetos com cobrança recorrente ativa." : "Um ou mais projetos selecionados não pertencem a este cliente.");
+  if (projectIds !== "billing" && projects.length !== uniqueIds.length) throw new Error("Um ou mais projetos selecionados não pertencem a este cliente.");
 
-  if (!prof.email) {
-    throw new Error("O cliente não tem e-mail cadastrado.");
-  }
-
-  const { data: projects, error: projectsError } = await db
-    .from("projects")
-    .select("id,name,contract_start")
-    .eq("client_id", clientId)
-    .eq("billing_enabled", true)
-    .order("name", { ascending: true });
-
-  if (projectsError) {
-    throw new Error(
-      "Não foi possível carregar os projetos recorrentes deste cliente.",
-    );
-  }
-
-  if (!projects?.length) {
-    throw new Error(
-      "Este cliente não tem projetos com cobrança recorrente ativa.",
-    );
-  }
+  const { data: existing, error: invoicesError } = await db.from("invoices").select("project_id,status,due_date,amount").in("project_id", projects.map((p: { id: string }) => p.id));
+  if (invoicesError) throw new Error("Não foi possível verificar as faturas já registradas.");
 
   const now = new Date();
-  const today = ymd(now);
+  const plan = planManualInvoices(projects, existing ?? [], now, ymd(now));
+  if (!plan.items.length) throw new Error("A fatura deste mês já está paga para os projetos selecionados.");
 
-  const items = projects.map(
-    (project: { name: string; contract_start: string }) => {
-      const contractDay = new Date(
-        project.contract_start + "T12:00:00",
-      ).getDate();
+  if (plan.toCreate.length) {
+    const { error } = await db.from("invoices").insert(plan.toCreate);
+    if (error) throw new Error("Não foi possível registrar a fatura em aberto.");
+  }
 
-      const dueDate = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        Math.min(28, contractDay),
-      )
-        .toISOString()
-        .slice(0, 10);
-
-      return {
-        project: project.name || "Projeto",
-        due_date: dueDate,
-        amount: monthlyFee(project.contract_start, now),
-        overdue: dueDate < today,
-      };
-    },
-  );
-
-  const total = items.reduce(
-    (sum: number, item: { amount: number }) => sum + item.amount,
-    0,
-  );
-
-  const subject =
-    items.length === 1
-      ? `Cobrança Synex — ${items[0].project} — ${dateBR(items[0].due_date)}`
-      : `Cobrança Synex — ${items.length} projetos — total ${brl(total)}`;
-
-  await sendEmail(
-    FROM_FINANCEIRO,
-    prof.email,
-    subject,
-    clientInvoicesHtml(prof.full_name || "cliente", items),
-  );
-
-  return { count: items.length, total };
+  const first = plan.items[0];
+  const subject = plan.items.length === 1 && first
+    ? `Cobrança Synex — ${first.project} — ${dateBR(first.due_date)}`
+    : `Cobrança Synex — ${plan.items.length} projetos — total ${brl(plan.total)}`;
+  try {
+    await sendEmail(FROM_FINANCEIRO, prof.email, subject, clientInvoicesHtml(prof.full_name || "cliente", plan.items));
+  } catch (e) {
+    console.error(e);
+    // Reenviar é seguro: a fatura já registrada é reaproveitada, nunca duplicada.
+    throw new Error(plan.toCreate.length ? "A fatura foi registrada em aberto, mas o e-mail não foi enviado. Clique em Enviar fatura de novo (não duplica)." : "Não foi possível enviar o e-mail da fatura.");
+  }
+  return { count: plan.items.length, total: plan.total, created: plan.toCreate.length, skipped: plan.skipped };
 }
 
-// Novo envio manual por seleção de projetos.
-// Não depende da recorrência e não altera a tabela invoices.
-export async function sendSelectedClientInvoicesManually(
-  clientId: string,
-  projectIds: string[],
-) {
-  const db = await admin();
-
-  const { data: prof, error: profileError } = await db
-    .from("profiles")
-    .select("full_name,email")
-    .eq("id", clientId)
-    .maybeSingle();
-
-  if (profileError || !prof) {
-    throw new Error("Cliente não encontrado.");
-  }
-
-  if (!prof.email) {
-    throw new Error("O cliente não tem e-mail cadastrado.");
-  }
-
-  if (!projectIds.length) {
-    throw new Error("Selecione pelo menos um projeto.");
-  }
-
-  const uniqueIds = [...new Set(projectIds)];
-
-  const { data: projects, error: projectsError } = await db
-    .from("projects")
-    .select("id,name,contract_start")
-    .eq("client_id", clientId)
-    .in("id", uniqueIds)
-    .order("name", { ascending: true });
-
-  if (projectsError) {
-    throw new Error("Não foi possível carregar os projetos selecionados.");
-  }
-
-  if (!projects?.length || projects.length !== uniqueIds.length) {
-    throw new Error(
-      "Um ou mais projetos selecionados não pertencem a este cliente.",
-    );
-  }
-
-  const now = new Date();
-  const today = ymd(now);
-
-  const items = projects.map(
-    (project: { name: string; contract_start: string }) => {
-      const contractDay = new Date(
-        project.contract_start + "T12:00:00",
-      ).getDate();
-
-      const dueDate = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        Math.min(28, contractDay),
-      )
-        .toISOString()
-        .slice(0, 10);
-
-      return {
-        project: project.name || "Projeto",
-        due_date: dueDate,
-        amount: monthlyFee(project.contract_start, now),
-        overdue: dueDate < today,
-      };
-    },
-  );
-
-  const total = items.reduce(
-    (sum: number, item: { amount: number }) => sum + item.amount,
-    0,
-  );
-
-  const subject =
-    items.length === 1
-      ? `Cobrança Synex — ${items[0].project} — ${dateBR(items[0].due_date)}`
-      : `Cobrança Synex — ${items.length} projetos — total ${brl(total)}`;
-
-  await sendEmail(
-    FROM_FINANCEIRO,
-    prof.email,
-    subject,
-    clientInvoicesHtml(prof.full_name || "cliente", items),
-  );
-
-  return {
-    count: items.length,
-    total,
-  };
-}
+// Projetos com cobrança recorrente ligada (mantida para admin.functions.ts).
+export const sendClientInvoicesManually = (clientId: string) => registerAndSendInvoices(clientId, "billing");
+// Projetos escolhidos pelo proprietário na tela do Financeiro.
+export const sendSelectedClientInvoicesManually = (clientId: string, projectIds: string[]) => registerAndSendInvoices(clientId, projectIds);
 
 // Envio manual de uma fatura individual já registrada.
 export async function sendInvoiceManually(invoiceId: string) {

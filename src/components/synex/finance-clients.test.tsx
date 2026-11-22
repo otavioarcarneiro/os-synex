@@ -20,26 +20,65 @@ const rows = buildClientRows(
 const actions = (over = {}) => ({ isOwner: true, sendingClient: null, sendingInvoice: null, onSendClient: vi.fn(), onSendInvoice: vi.fn(), onMarkPaid: vi.fn(), ...over });
 
 describe("lista de clientes do Financeiro", () => {
-  it("mostra nome completo, projetos, recorrência e botão de enviar por cliente", () => {
+  it("mostra nome completo, projetos, recorrência, faturas em aberto e botão de enviar por cliente", () => {
     render(<FinanceClients rows={rows} actions={actions()} />);
     expect(screen.getByRole("button", { name: "Abrir Maria Souza" }).textContent).toBe("Maria Souza");
-    expect(screen.getByText("Site Maria")).toBeTruthy();
-    expect(screen.getByText("Instagram Maria")).toBeTruthy();
+    expect(screen.getAllByText("Site Maria").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Instagram Maria").length).toBeGreaterThan(0);
     expect(screen.getByText(/R\$\s*347,00\/mês/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Enviar faturas \(2\)/ })).toBeTruthy();
+    expect(screen.getByText(/R\$\s*347,00 em aberto/)).toBeTruthy();
+    expect(screen.getByText("Faturas em aberto")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Enviar fatura/ })[0]).toBeTruthy();
     expect(screen.getByText("Álvaro Lima")).toBeTruthy();
   });
-  it("botão de enviar chama o envio do cliente sem abrir o detalhe", () => {
+  it("cliente com vários projetos: o botão abre o seletor e envia só os projetos marcados", () => {
     const a = actions();
     render(<FinanceClients rows={rows} actions={a} />);
-    fireEvent.click(screen.getByRole("button", { name: /Enviar faturas \(2\)/ }));
-    expect(a.onSendClient).toHaveBeenCalledWith(expect.objectContaining({ id: "c1" }));
-    expect(screen.queryByText("Histórico de faturas")).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: /Enviar fatura/ })[0]!);
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Selecionar projetos para cobrança")).toBeTruthy();
+    expect(within(dialog).getByText(/registrados como faturas em aberto/)).toBeTruthy();
+    expect(screen.queryByText("Histórico de faturas")).toBeNull(); // não abriu o detalhe
+    const boxes = within(dialog).getAllByRole("checkbox") as HTMLInputElement[];
+    expect(boxes.every((b) => b.checked)).toBe(true);
+    fireEvent.click(boxes[1]!); // desmarca o segundo projeto
+    fireEvent.click(within(dialog).getByRole("button", { name: /Enviar cobrança/ }));
+    expect(a.onSendClient).toHaveBeenCalledTimes(1);
+    expect(a.onSendClient).toHaveBeenCalledWith(expect.objectContaining({ id: "c1" }), ["p1"]);
   });
-  it("cliente sem e-mail ou sem pendências tem o botão desabilitado", () => {
+  it("cliente com um único projeto envia direto, sem seletor", () => {
+    const one = buildClientRows(
+      [{ id: "c9", full_name: "Joana Dias", email: "joana@x.com" }],
+      [{ id: "p9", name: "Site Joana", kind: "site", client_id: "c9", billing_enabled: true, contract_start: "2026-08-10" }],
+      [], "2026-11-21", new Date("2026-11-21T12:00:00"),
+    );
+    const a = actions();
+    render(<FinanceClients rows={one} actions={a} />);
+    fireEvent.click(screen.getByRole("button", { name: /Enviar fatura/ }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(a.onSendClient).toHaveBeenCalledWith(expect.objectContaining({ id: "c9" }), ["p9"]);
+  });
+  it("o botão funciona mesmo sem nenhuma fatura registrada (depende só de e-mail e projeto)", () => {
+    const none = buildClientRows(
+      [{ id: "c9", full_name: "Joana Dias", email: "joana@x.com" }],
+      [{ id: "p9", name: "Site Joana", kind: "site", client_id: "c9", billing_enabled: false, contract_start: "2026-08-10" }],
+      [], "2026-11-21", new Date("2026-11-21T12:00:00"),
+    );
+    render(<FinanceClients rows={none} actions={actions()} />);
+    expect((screen.getByRole("button", { name: /Enviar fatura/ }) as HTMLButtonElement).disabled).toBe(false);
+  });
+  it("faturas em aberto aparecem no cartão e podem ser baixadas direto dali", () => {
+    const a = actions();
+    render(<FinanceClients rows={rows} actions={a} />);
+    fireEvent.click(screen.getAllByRole("button", { name: /Marcar pago/ })[0]!);
+    expect(a.onMarkPaid).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+  it("cliente sem e-mail tem o botão desabilitado", () => {
     render(<FinanceClients rows={rows} actions={actions()} />);
-    const buttons = screen.getAllByRole("button", { name: /Enviar fatura/ });
-    expect(buttons.some((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    const buttons = screen.getAllByRole("button", { name: /Enviar fatura/ }) as HTMLButtonElement[];
+    expect(buttons.some((b) => b.disabled)).toBe(true);
+    expect(buttons.some((b) => !b.disabled)).toBe(true);
   });
   it("quem não é Proprietário não vê botões de envio", () => {
     render(<FinanceClients rows={rows} actions={actions({ isOwner: false })} />);
@@ -47,7 +86,7 @@ describe("lista de clientes do Financeiro", () => {
   });
   it("clicar em qualquer parte do cartão também abre o detalhe", () => {
     render(<FinanceClients rows={rows} actions={actions()} />);
-    fireEvent.click(screen.getByText("Instagram Maria"));
+    fireEvent.click(screen.getAllByText("Instagram Maria")[0]!);
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
   it("clicar no cliente abre o detalhe com projetos e histórico completo", () => {

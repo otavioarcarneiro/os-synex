@@ -47,8 +47,9 @@ export function FinanceClients({ rows, actions }: { rows: ClientRow[]; actions: 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
 
   function chooseClient(c: ClientRow) {
-    if (c.projects.length === 1) {
-      actions.onSendClient(c, [c.projects[0].id]);
+    const only = c.projects[0];
+    if (c.projects.length === 1 && only) {
+      actions.onSendClient(c, [only.id]);
       return;
     }
     setSelectionClient(c);
@@ -143,7 +144,7 @@ export function FinanceClients({ rows, actions }: { rows: ClientRow[]; actions: 
             <>
               <DialogHeader>
                 <DialogTitle>Selecionar projetos para cobrança</DialogTitle>
-                <DialogDescription>Escolha quais projetos de {selectionClient.name} serão incluídos em um único e-mail. A recorrência pode estar ligada ou desligada.</DialogDescription>
+                <DialogDescription>Escolha quais projetos de {selectionClient.name} serão registrados como faturas em aberto e enviados em um único e-mail. A recorrência pode estar ligada ou desligada.</DialogDescription>
               </DialogHeader>
               <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
                 <span className="text-sm font-medium">Selecionar todos os projetos</span>
