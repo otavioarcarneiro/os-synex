@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, FileText, ExternalLink, Instagram, Globe, ChartColumn } from "lucide-react";
+import { Plus, RefreshCw, FileText, ExternalLink, Instagram, Globe, ChartColumn, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/hooks/use-me";
@@ -33,9 +33,11 @@ function Projects() {
   const canWrite = me?.primaryRole === "owner" || (me?.primaryRole === "admin" && me.department === "execucao");
   const isOwner = me?.primaryRole === "owner";
   const [newOpen, setNewOpen] = useState(false);
+  const [editFor, setEditFor] = useState<string | null>(null);
   const [docsFor, setDocsFor] = useState<string | null>(null);
   const [analyticsFor, setAnalyticsFor] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+
   const { data: projects = [] } = useQuery({
     queryKey: ["projects"],
     refetchInterval: 60000,
@@ -86,6 +88,7 @@ function Projects() {
                 <td className="p-4 text-right whitespace-nowrap">
                   {p.kind === "site" && <Button size="sm" variant="ghost" onClick={() => check(p.id)}><RefreshCw className="h-4 w-4" /></Button>}
                   {p.kind === "site" && <Button size="sm" variant="ghost" onClick={() => setAnalyticsFor(p.id)}><ChartColumn className="h-4 w-4" /> Analytics</Button>}
+                  {canWrite && <Button size="sm" variant="ghost" title="Editar projeto" aria-label="Editar projeto" onClick={() => setEditFor(p.id)}><Pencil className="h-4 w-4" /></Button>}
                   <Button size="sm" variant="ghost" onClick={() => setDocsFor(p.id)}><FileText className="h-4 w-4" /> Docs</Button>
                 </td>
               </tr>
@@ -94,9 +97,152 @@ function Projects() {
         </table>
       </div>
       <NewProjectDialog open={newOpen} onOpenChange={setNewOpen} onCreated={setAnalyticsFor} />
+      <EditProjectDialog project={projects.find((p: any) => p.id === editFor) ?? null} onClose={() => setEditFor(null)} isOwner={!!isOwner} />
       <Dialog open={!!analyticsFor} onOpenChange={(v) => !v && setAnalyticsFor(null)}><DialogContent className="min-w-0 max-h-[90vh] overflow-x-hidden overflow-y-auto bg-card sm:max-w-2xl"><DialogHeader><DialogTitle>{projects.find((p) => p.id === analyticsFor)?.name ?? "Projeto criado"}</DialogTitle></DialogHeader>{projects.find((p) => p.id === analyticsFor) && <SiteAnalytics project={projects.find((p) => p.id === analyticsFor) as (typeof projects)[number]} showCode />}</DialogContent></Dialog>
       <DocsDialog projectId={docsFor} onClose={() => setDocsFor(null)} canWrite={!!canWrite} canDelete={isOwner} />
     </div>
+  );
+}
+
+function EditProjectDialog({ project, onClose, isOwner }: { project: any | null; onClose: () => void; isOwner: boolean }) {
+  const qc = useQueryClient();
+  const [saving, setSaving] = useState(false);
+  const [clients, setClients] = useState<{ id: string; full_name: string | null; email: string | null }[]>([]);
+  const [f, setF] = useState({
+    client_id: "", name: "", kind: "site", url: "", instagram_handle: "",
+    publish_status: "em_desenvolvimento", setup_price: "0", contract_start: "",
+    billing_enabled: false, ga4_property_id: "", is_ecommerce: false, google_drive_url: "",
+  });
+
+  useEffect(() => {
+    if (!project) return;
+    setF({
+      client_id: project.client_id ?? "",
+      name: project.name ?? "",
+      kind: project.kind ?? "site",
+      url: project.url ?? "",
+      instagram_handle: project.instagram_handle ?? "",
+      publish_status: project.publish_status ?? "em_desenvolvimento",
+      setup_price: String(project.setup_price ?? 0),
+      contract_start: project.contract_start ?? "",
+      billing_enabled: !!project.billing_enabled,
+      ga4_property_id: project.ga4_property_id ?? "",
+      is_ecommerce: !!project.is_ecommerce,
+      google_drive_url: project.google_drive_url ?? "",
+    });
+  }, [project?.id]);
+
+  useEffect(() => {
+    if (!project) return;
+    let active = true;
+    async function loadClients() {
+      const { data: roles } = await supabase.from("user_roles").select("user_id").in("role", ["client", "owner"]);
+      const ids = (roles ?? []).map((x) => x.user_id);
+      if (!ids.length) return;
+      const { data } = await supabase.from("profiles").select("id, full_name, email").in("id", ids).neq("status", "deleted");
+      if (active) setClients(data ?? []);
+    }
+    loadClients();
+    return () => { active = false; };
+  }, [project?.id]);
+
+  async function save() {
+    if (!project) return;
+    if (!f.client_id || f.name.trim().length < 2) return toast.error("Selecione o cliente e informe um nome válido.");
+    const setupPrice = Number(f.setup_price);
+    if (!Number.isFinite(setupPrice) || setupPrice < 0) return toast.error("Informe um valor de setup válido.");
+    if (!f.contract_start) return toast.error("Informe o início do contrato.");
+
+    if (f.url.trim()) {
+      try {
+        const parsed = new URL(f.url.trim());
+        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
+      } catch { return toast.error("Informe uma URL válida começando com https://"); }
+    }
+
+    if (f.google_drive_url.trim()) {
+      try {
+        const parsed = new URL(f.google_drive_url.trim());
+        if (parsed.protocol !== "https:") throw new Error();
+      } catch { return toast.error("O link do Google Drive deve ser uma URL HTTPS válida."); }
+    }
+
+    setSaving(true);
+    const updates = {
+  client_id: f.client_id,
+  name: f.name.trim(),
+  kind: f.kind,
+  url: f.url.trim() || null,
+  instagram_handle: f.instagram_handle.trim().replace(/^@+/, "") || null,
+  publish_status: f.publish_status.trim() || "em_desenvolvimento",
+  setup_price: setupPrice,
+  contract_start: f.contract_start,
+  ga4_property_id: f.ga4_property_id.trim() || null,
+  is_ecommerce: f.kind === "site" && f.is_ecommerce,
+  google_drive_url: f.google_drive_url.trim() || null,
+  ...(isOwner ? { billing_enabled: f.billing_enabled } : {}),
+};
+
+    const { error } = await supabase.from("projects").update(updates).eq("id", project.id);
+    setSaving(false);
+    if (error) return toast.error(error.message);
+
+    toast.success("Projeto atualizado.");
+    qc.invalidateQueries({ queryKey: ["projects"] });
+    onClose();
+  }
+
+  return (
+    <Dialog open={!!project} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto bg-card sm:max-w-2xl">
+        <DialogHeader><DialogTitle>Editar projeto</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Label>Cliente</Label>
+            <Select value={f.client_id} onValueChange={(v) => setF({ ...f, client_id: v })}>
+              <SelectTrigger className="bg-field"><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
+              <SelectContent>{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.full_name || c.email || c.id}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1"><Label>Nome do projeto</Label><Input value={f.name} maxLength={120} onChange={(e) => setF({ ...f, name: e.target.value })} className="bg-field" /></div>
+            <div className="space-y-1">
+              <Label>Tipo</Label>
+              <Select value={f.kind} onValueChange={(v) => setF({ ...f, kind: v })}>
+                <SelectTrigger className="bg-field"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="site">Site</SelectItem><SelectItem value="instagram">Instagram</SelectItem></SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1"><Label>URL oficial</Label><Input value={f.url} onChange={(e) => setF({ ...f, url: e.target.value })} placeholder="https://" className="bg-field" /></div>
+          <div className="space-y-1"><Label>Perfil do Instagram</Label><Input value={f.instagram_handle} onChange={(e) => setF({ ...f, instagram_handle: e.target.value })} placeholder="@perfil" className="bg-field" /></div>
+          <div className="space-y-1"><Label>Status de publicação</Label><Input value={f.publish_status} onChange={(e) => setF({ ...f, publish_status: e.target.value })} placeholder="em_desenvolvimento" className="bg-field" /></div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1"><Label>Setup (R$)</Label><Input type="number" min="0" step="0.01" value={f.setup_price} onChange={(e) => setF({ ...f, setup_price: e.target.value })} className="bg-field" /></div>
+            <div className="space-y-1"><Label>Início do contrato</Label><Input type="date" value={f.contract_start} onChange={(e) => setF({ ...f, contract_start: e.target.value })} className="bg-field" /></div>
+          </div>
+
+          <div className="space-y-1"><Label>GA4 Property ID</Label><Input value={f.ga4_property_id} onChange={(e) => setF({ ...f, ga4_property_id: e.target.value })} className="bg-field" /></div>
+          <div className="space-y-1">
+            <Label>Link da pasta Google Drive (opcional)</Label>
+            <Input value={f.google_drive_url} onChange={(e) => setF({ ...f, google_drive_url: e.target.value })} placeholder="https://drive.google.com/..." className="bg-field" />
+            <p className="text-xs text-muted-foreground">Deixe vazio para remover o link salvo.</p>
+          </div>
+
+          <label className="flex items-center justify-between text-sm">E-commerce<Switch checked={f.is_ecommerce} onCheckedChange={(v) => setF({ ...f, is_ecommerce: v })} disabled={f.kind !== "site"} /></label>
+
+          {isOwner && <label className="flex items-center justify-between border-t border-border pt-3 text-sm">Cobrança habilitada<Switch checked={f.billing_enabled} onCheckedChange={(v) => setF({ ...f, billing_enabled: v })} /></label>}
+
+          <div className="flex justify-end gap-2 border-t border-border pt-4">
+            <Button variant="outline" onClick={onClose} disabled={saving}>Cancelar</Button>
+            <Button onClick={save} disabled={saving}>{saving ? "Salvando..." : "Salvar alterações"}</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
