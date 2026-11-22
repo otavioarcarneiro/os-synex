@@ -26,11 +26,12 @@ type Actions = {
 
 function SendClientButton({ c, a, size = "sm" }: { c: ClientRow; a: Actions; size?: "sm" | "default" }) {
   if (!a.isOwner) return null;
-  const disabled = a.sendingClient === c.id || c.openCount === 0 || !c.email;
+  const hasRecurringProject = c.projects.some((project) => project.billing);
+  const disabled = a.sendingClient === c.id || !hasRecurringProject || !c.email;
   return (
     <Button size={size} variant="outline" disabled={disabled} onClick={(e) => { e.stopPropagation(); a.onSendClient(c); }}
-      title={!c.email ? "Cliente sem e-mail cadastrado" : c.openCount === 0 ? "Nenhuma fatura pendente" : undefined}>
-      <Send className="h-4 w-4" /> {a.sendingClient === c.id ? "Enviando…" : c.openCount > 1 ? `Enviar faturas (${c.openCount})` : "Enviar fatura"}
+      title={!c.email ? "Cliente sem e-mail cadastrado" : !hasRecurringProject ? "Nenhum projeto com cobrança recorrente ativa" : undefined}>
+      <Send className="h-4 w-4" /> {a.sendingClient === c.id ? "Enviando…" : "Enviar fatura"}
     </Button>
   );
 }
@@ -39,7 +40,7 @@ export function FinanceClients({ rows, actions }: { rows: ClientRow[]; actions: 
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const shown = useMemo(() => filterClients(rows, query), [rows, query]);
-  const selected = rows.find((r) => r.id === selectedId) ?? null; // sempre o dado mais recente
+  const selected = rows.find((r) => r.id === selectedId) ?? null;
 
   return (
     <>

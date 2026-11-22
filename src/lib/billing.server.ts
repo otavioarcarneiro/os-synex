@@ -1,4 +1,5 @@
 import { FROM_FINANCEIRO, brl, clientInvoicesHtml, dateBR, invoiceHtml, reminderHtml, sendEmail, thanksHtml } from "./email.server";
+import { monthlyFee } from "./pricing";
 
 const ymd = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 const SELECT = "id,amount,due_date,status,reminder_sent_at,due_notice_sent_at,thanks_sent_at,project:projects(name,client:profiles!projects_client_id_fkey(email,full_name))";
@@ -43,8 +44,59 @@ export async function sendPaymentThanks(invoiceId: string) {
   catch (e) { await db.from("invoices").update({ thanks_sent_at: null }).eq("id", invoiceId); throw e; }
 }
 
-// Cobrança manual: envio imediato da fatura pendente ao cliente.
-// Não altera reminder_sent_at / due_notice_sent_at / thanks_sent_at: os agendamentos automáticos seguem intactos.
+// Cobrança manual de um cliente: calcula a mensalidade vigente dos projetos recorrentes
+// e envia o e-mail diretamente, sem consultar ou alterar a tabela invoices.
+export async function sendClientInvoicesManually(clientId: string) {
+  const db = await admin();
+  const { data: prof, error: profileError } = await db
+    .from("profiles")
+    .select("full_name,email")
+    .eq("id", clientId)
+    .maybeSingle();
+
+  if (profileError || !prof) throw new Error("Cliente não encontrado.");
+  if (!prof.email) throw new Error("O cliente não tem e-mail cadastrado.");
+
+  const { data: projects, error: projectsError } = await db
+    .from("projects")
+    .select("id,name,contract_start")
+    .eq("client_id", clientId)
+    .eq("billing_enabled", true)
+    .order("name", { ascending: true });
+
+  if (projectsError) throw new Error("Não foi possível carregar os projetos recorrentes deste cliente.");
+  if (!projects?.length) throw new Error("Este cliente não tem projetos com cobrança recorrente ativa.");
+
+  const now = new Date();
+  const today = ymd(now);
+  const items = projects.map((project: { name: string; contract_start: string }) => {
+    const contractDay = new Date(project.contract_start + "T12:00:00").getDate();
+    const dueDate = new Date(now.getFullYear(), now.getMonth(), Math.min(28, contractDay)).toISOString().slice(0, 10);
+    return {
+      project: project.name || "Projeto",
+      due_date: dueDate,
+      amount: monthlyFee(project.contract_start, now),
+      overdue: dueDate < today,
+    };
+  });
+
+  const total = items.reduce((sum: number, item: { amount: number }) => sum + item.amount, 0);
+  const subject = items.length === 1
+    ? `Cobrança Synex — ${items[0].project} — ${dateBR(items[0].due_date)}`
+    : `Cobrança Synex — ${items.length} projetos — total ${brl(total)}`;
+
+  await sendEmail(
+    FROM_FINANCEIRO,
+    prof.email,
+    subject,
+    clientInvoicesHtml(prof.full_name || "cliente", items),
+  );
+
+  return { count: items.length, total };
+}
+
+// Cobrança manual imediata de uma fatura já registrada.
+// Mantida para o botão individual do histórico; não altera os registros.
 export async function sendInvoiceManually(invoiceId: string) {
   const db = await admin();
   const { data: row, error } = await db.from("invoices").select(SELECT).eq("id", invoiceId).maybeSingle();
@@ -56,25 +108,4 @@ export async function sendInvoiceManually(invoiceId: string) {
   const subject = overdue ? `Fatura Synex em atraso — vencimento ${dateBR(row.due_date)}` : `Fatura Synex — vencimento ${dateBR(row.due_date)}`;
   await sendEmail(FROM_FINANCEIRO, to, subject, invoiceHtml(inv, overdue));
   return true;
-}
-
-// Cobrança manual por cliente: um e-mail consolidado com todas as faturas pendentes dos projetos dele.
-// Não altera reminder_sent_at / due_notice_sent_at / thanks_sent_at (agendamentos automáticos intactos).
-export async function sendClientInvoicesManually(clientId: string) {
-  const db = await admin();
-  const { data: prof } = await db.from("profiles").select("full_name,email").eq("id", clientId).maybeSingle();
-  if (!prof) throw new Error("Cliente não encontrado.");
-  if (!prof.email) throw new Error("O cliente não tem e-mail cadastrado.");
-  const { data: rows, error } = await db.from("invoices").select("id,amount,due_date,project:projects!inner(name,client_id)")
-    .eq("status", "pending").eq("project.client_id", clientId).order("due_date", { ascending: true }).limit(50);
-  if (error) throw new Error("Não foi possível carregar as faturas do cliente.");
-  if (!rows?.length) throw new Error("Este cliente não tem faturas pendentes.");
-  const today = ymd(new Date());
-  const items = rows.map((r: any) => ({ project: r.project?.name ?? "Projeto", due_date: r.due_date as string, amount: Number(r.amount), overdue: r.due_date < today }));
-  const total = items.reduce((s: number, i: { amount: number }) => s + i.amount, 0);
-  const subject = items.length === 1
-    ? `Fatura Synex — ${items[0].project} — vencimento ${dateBR(items[0].due_date)}`
-    : `Faturas Synex em aberto — total ${brl(total)}`;
-  await sendEmail(FROM_FINANCEIRO, prof.email, subject, clientInvoicesHtml(prof.full_name || "cliente", items));
-  return { count: items.length, total };
 }

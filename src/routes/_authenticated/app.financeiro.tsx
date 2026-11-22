@@ -31,7 +31,6 @@ function Finance() {
         supabase.from("user_roles").select("user_id").eq("role", "client"),
       ]);
       const projects = proj.data ?? [];
-      // Todos os clientes (papel "client") + donos de projetos, mesmo que o papel não esteja visível.
       const ids = [...new Set([...(roles.data ?? []).map((r) => r.user_id), ...projects.map((p) => p.client_id)])];
       const { data: clients } = ids.length ? await supabase.from("profiles").select("id,full_name,email,phone").in("id", ids) : { data: [] };
       return { invoices: inv.data ?? [], projects, clients: clients ?? [], billingOn: settings.data?.billing_enabled ?? false };
@@ -46,12 +45,20 @@ function Finance() {
   const refresh = () => qc.invalidateQueries({ queryKey: ["finance"] });
 
   async function sendClient(c: ClientRow) {
-    if (!window.confirm(`Enviar ${c.openCount > 1 ? `as ${c.openCount} faturas pendentes` : "a fatura pendente"} (${brl(c.openAmount)}) de ${c.name} para ${c.email}?`)) return;
+    const recurringProjects = c.projects.filter((project) => project.billing);
+    const monthlyTotal = recurringProjects.reduce((sum, project) => sum + project.fee, 0);
+    if (!window.confirm(`Enviar a cobrança mensal atual de ${recurringProjects.length} projeto(s), no total de ${brl(monthlyTotal)}, para ${c.name} (${c.email})?`)) return;
     setSendingClient(c.id);
-    try { const r = await sendClientInvoices({ data: { clientId: c.id } }); toast.success(`${r.count} fatura(s) enviada(s) a ${c.name}`); }
-    catch (e) { toast.error(e instanceof Error ? e.message : "Não foi possível enviar as faturas"); }
-    finally { setSendingClient(null); }
+    try {
+      const r = await sendClientInvoices({ data: { clientId: c.id } });
+      toast.success(`Cobrança de ${r.count} projeto(s) enviada para ${c.name} (${brl(r.total)})`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível enviar a cobrança");
+    } finally {
+      setSendingClient(null);
+    }
   }
+
   async function sendOne(i: ClientInvoice, c: ClientRow) {
     if (!window.confirm(`Enviar a fatura de ${i.projectName} agora para ${c.email}?`)) return;
     setSendingInvoice(i.id);
@@ -59,6 +66,7 @@ function Finance() {
     catch (e) { toast.error(e instanceof Error ? e.message : "Não foi possível enviar a fatura"); }
     finally { setSendingInvoice(null); }
   }
+
   async function markPaid(i: ClientInvoice) {
     const { error } = await supabase.from("invoices").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", i.id);
     if (error) return toast.error(error.message);
