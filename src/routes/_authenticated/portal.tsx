@@ -53,8 +53,22 @@ function Portal() {
             </div>
             {p.kind === "site" && <SiteAnalytics project={p} />}
             <Panel title="Documentos">
-              {docs.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum documento.</p> : docs.map((d) => <a key={d.id} href={d.url} target="_blank" rel="noreferrer" className="block py-1 text-sm hover:text-primary">{d.title}</a>)}
-            </Panel>
+  {p.google_drive_url ? (
+    <p className="text-sm">
+      <strong>Google Drive</strong> -{" "}
+      <a
+        href={p.google_drive_url}
+        target="_blank"
+        rel="noreferrer"
+        className="text-primary underline break-all"
+      >
+        {p.google_drive_url}
+      </a>
+    </p>
+  ) : (
+    <p className="text-sm text-muted-foreground">Nenhum documento.</p>
+  )}
+</Panel>
             <Panel title="Faturas">
               {invoices.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma fatura.</p> : invoices.map((i) => (
                 <div key={i.id} className="flex justify-between py-1 text-sm"><span className="font-mono">{new Date(i.due_date + "T12:00:00").toLocaleDateString("pt-BR")}</span><span className="font-mono">{brl(Number(i.amount))}</span><Badge variant="outline">{i.status === "paid" ? "Pago" : "Em aberto"}</Badge></div>
