@@ -111,6 +111,7 @@ export type Database = {
           paid_at: string | null
           project_id: string
           reminder_sent_at: string | null
+          sent_at: string | null
           status: string
           thanks_sent_at: string | null
         }
@@ -123,6 +124,7 @@ export type Database = {
           paid_at?: string | null
           project_id: string
           reminder_sent_at?: string | null
+          sent_at?: string | null
           status?: string
           thanks_sent_at?: string | null
         }
@@ -135,6 +137,7 @@ export type Database = {
           paid_at?: string | null
           project_id?: string
           reminder_sent_at?: string | null
+          sent_at?: string | null
           status?: string
           thanks_sent_at?: string | null
         }
