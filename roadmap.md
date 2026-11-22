@@ -1,30 +1,29 @@
-# Synex OS — roadmap
-- [ ] Correções pontuais da auditoria: remover simulação, uptime real a cada 30 min e e-mails operacionais/financeiros
-  - [x] Remover botão e estado de simulação de queda
-  - [x] Ativar checagem automática real a cada 30 minutos
-  - [ ] Alerta de queda e e-mails de cobrança/agradecimento — aguarda configuração do domínio de e-mail
-- [ ] Correção de segurança — aguarda aprovação da estratégia de migração e testes isolados
-  - [ ] PIN privado, autorização restrita e tentativas atômicas
-  - [ ] Sessões vinculadas à autenticação, suspensão e recuperação segura
-  - [ ] Permissões financeiras, clientes e funções SQL
-  - [ ] Dependências corrigidas e proteção SSRF
-  - [ ] Login, origens oficiais, mensagens, IA e Analytics
-  - [ ] Auditoria atômica, regressão por cinco perfis e relatório técnico
-  - [ ] Implantação coordenada — somente após autorização separada
-- [x] Auditoria manual de segurança: funções, políticas, chaves e dependências — riscos em relatório, sem correções aplicadas
-- [ ] Consolidar análise aprofundada de segurança — aguarda conclusão automática; testes autenticados ainda pendentes
-- [x] Login diagonal, backoff, bloqueio administrativo + ficha forense, sessão única
-- [x] Perfil, RBAC, Área Restrita (PIN), usuários + auditoria, projetos, financeiro, chat, anotações, portal + suporte IA
-- [ ] E-mails de cobrança (3 dias antes / vencimento / agradecimento) — precisa de domínio de e-mail
-- [ ] Alerta de queda no WhatsApp — precisa de serviço de WhatsApp
-- [x] Agendar uptime a cada 30 min
-- [x] Etapa 5: convite de instalação e notificações no aparelho (envio real a confirmar após publicar)
-- [ ] Métricas Instagram — precisam da conta conectada; GA4 substituído por Synex Analytics
-- [x] Google exclusivo para usuários previamente autorizados (sem Apple)
-- [ ] Validar autorização Google com escolha real da conta — requer interação do usuário no Google
-- [x] Blindagem mútua de sessões proprietárias
-- [x] Montserrat e destaque das boas-vindas
-- [x] Analytics Synex: código por projeto, visitas, horários e conversões
-- [ ] Coleta nos sites externos — publicar o Synex OS e instalar o código no site; conversões exigem chamada no sucesso da compra
-- [x] Projeto oficial #1 e alternador CRM / Portal para proprietários
-- [x] Limpeza de auditoria exclusiva dos proprietários
+# Synex OS — acompanhamento técnico
+
+Este arquivo registra frentes de trabalho conhecidas. O estado de cada item deve ser confirmado no código e no ambiente publicado antes de ser considerado concluído.
+
+## Manutenção e qualidade
+- [ ] Executar testes automatizados e build de produção após cada rodada de alterações.
+- [ ] Revisar erros de consulta e estados de carregamento/erro nas telas principais.
+- [ ] Revisar dependências e corrigir advisories sem atualizar versões indiscriminadamente.
+- [ ] Revisar arquivos sem referência antes de qualquer remoção.
+
+## Segurança — pendente de validação
+- [ ] PIN mestre armazenado e validado exclusivamente no servidor, com derivação de chave apropriada.
+- [ ] Revalidação de identidade da Área Restrita aplicada no servidor a cada ação protegida.
+- [ ] Revogação e suspensão de sessões aplicadas também nas operações protegidas e políticas do banco.
+- [ ] Restringir permissões financeiras por operação e por campo.
+- [ ] Corrigir vulnerabilidades de dependências e revisar proteção SSRF.
+- [ ] Executar testes autenticados com contas sintéticas para os perfis de acesso.
+- [ ] Fazer implantação coordenada somente após validação em ambiente isolado e autorização explícita.
+
+## Produto e integrações — validar no ambiente publicado
+- [ ] Confirmar envio de e-mails operacionais e financeiros com domínio de envio configurado.
+- [ ] Confirmar notificações push em dispositivos reais após publicação.
+- [ ] Confirmar coleta do Synex Analytics nos sites externos que instalarem o código de acompanhamento.
+- [ ] Validar fluxos de autenticação Google com interação real do usuário.
+
+## Histórico de decisões
+- O módulo de Analytics próprio substitui a integração GA4 prevista inicialmente.
+- O envio manual de cobrança registra a fatura como pendente, evita duplicidade por projeto/mês e permite a baixa manual.
+- Migrações já aplicadas são histórico do banco e não devem ser removidas como limpeza de arquivos.

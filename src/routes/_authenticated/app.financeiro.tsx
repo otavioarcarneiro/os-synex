@@ -14,7 +14,31 @@ import { Badge } from "@/components/ui/badge";
 import { FinanceClients } from "@/components/synex/finance-clients";
 import { buildClientRows, type ClientInvoice, type ClientRow } from "@/lib/finance-clients";
 
-export const Route = createFileRoute("/_authenticated/app/financeiro")({ head: () => ({ meta: [{ title: "Financeiro — Synex OS" }, { name: "description", content: "Faturas e recorrência da Synex." }, { property: "og:title", content: "Financeiro — Synex OS" }, { property: "og:description", content: "Faturas e recorrência da Synex." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: Finance });
+export const Route = createFileRoute("/_authenticated/app/financeiro")({
+  head: () => ({
+    meta: [
+      { title: "Financeiro — Synex OS" },
+      { name: "description", content: "Faturas e recorrência da Synex." },
+      { property: "og:title", content: "Financeiro — Synex OS" },
+      { property: "og:description", content: "Faturas e recorrência da Synex." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: Finance,
+});
+
+function dateInSaoPaulo(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type: "year" | "month" | "day") =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
 
 function Finance() {
   const { data: me } = useMe();
@@ -22,80 +46,210 @@ function Finance() {
   const isOwner = me?.primaryRole === "owner";
   const [sendingInvoice, setSendingInvoice] = useState<string | null>(null);
   const [sendingClient, setSendingClient] = useState<string | null>(null);
-  const { data } = useQuery({
+
+  const {
+    data,
+    error: financeError,
+    isError: financeIsError,
+  } = useQuery({
     queryKey: ["finance"],
     queryFn: async () => {
       const [inv, proj, settings, roles] = await Promise.all([
-        supabase.from("invoices").select("id,project_id,amount,due_date,status,paid_at").order("due_date", { ascending: false }),
-        supabase.from("projects").select("id,name,kind,client_id,billing_enabled,contract_start"),
-        supabase.from("system_settings").select("billing_enabled").eq("id", 1).maybeSingle(),
+        supabase
+          .from("invoices")
+          .select("id,project_id,amount,due_date,status,paid_at")
+          .order("due_date", { ascending: false }),
+        supabase
+          .from("projects")
+          .select("id,name,kind,client_id,billing_enabled,contract_start"),
+        supabase
+          .from("system_settings")
+          .select("billing_enabled")
+          .eq("id", 1)
+          .maybeSingle(),
         supabase.from("user_roles").select("user_id").eq("role", "client"),
       ]);
+
+      const queryError = inv.error ?? proj.error ?? settings.error ?? roles.error;
+      if (queryError) {
+        throw new Error(`Falha ao carregar os dados financeiros: ${queryError.message}`);
+      }
+
       const projects = proj.data ?? [];
-      const ids = [...new Set([...(roles.data ?? []).map((r) => r.user_id), ...projects.map((p) => p.client_id)])];
-      const { data: clients } = ids.length ? await supabase.from("profiles").select("id,full_name,email,phone").in("id", ids) : { data: [] };
-      return { invoices: inv.data ?? [], projects, clients: clients ?? [], billingOn: settings.data?.billing_enabled ?? false };
+      const ids = [
+        ...new Set([
+          ...(roles.data ?? []).map((role) => role.user_id),
+          ...projects.map((project) => project.client_id),
+        ]),
+      ];
+
+      const clientsResult = ids.length
+        ? await supabase
+            .from("profiles")
+            .select("id,full_name,email,phone")
+            .in("id", ids)
+        : { data: [], error: null };
+
+      if (clientsResult.error) {
+        throw new Error(`Falha ao carregar os clientes: ${clientsResult.error.message}`);
+      }
+
+      return {
+        invoices: inv.data ?? [],
+        projects,
+        clients: clientsResult.data ?? [],
+        billingOn: settings.data?.billing_enabled ?? false,
+      };
     },
   });
+
   const invoices = data?.invoices ?? [];
-  const today = new Date().toISOString().slice(0, 10);
-  const mrr = (data?.projects ?? []).filter((p) => p.billing_enabled).reduce((s, p) => s + monthlyFee(p.contract_start), 0);
-  const received = invoices.filter((i) => i.status === "paid").reduce((s, i) => s + Number(i.amount), 0);
-  const open = invoices.filter((i) => i.status === "pending");
-  const rows = useMemo(() => buildClientRows(data?.clients ?? [], data?.projects ?? [], data?.invoices ?? [], today), [data, today]);
+  const today = dateInSaoPaulo();
+  const mrr = (data?.projects ?? [])
+    .filter((project) => project.billing_enabled)
+    .reduce((sum, project) => sum + monthlyFee(project.contract_start), 0);
+  const received = invoices
+    .filter((invoice) => invoice.status === "paid")
+    .reduce((sum, invoice) => sum + Number(invoice.amount), 0);
+  const open = invoices.filter((invoice) => invoice.status === "pending");
+  const rows = useMemo(
+    () => buildClientRows(data?.clients ?? [], data?.projects ?? [], invoices, today),
+    [data, invoices, today],
+  );
   const refresh = () => qc.invalidateQueries({ queryKey: ["finance"] });
 
-  async function sendClient(c: ClientRow, projectIds: string[]) {
-    const chosen = c.projects.filter((project) => projectIds.includes(project.id));
+  async function sendClient(client: ClientRow, projectIds: string[]) {
+    const chosen = client.projects.filter((project) => projectIds.includes(project.id));
     if (!chosen.length) return;
     const monthlyTotal = chosen.reduce((sum, project) => sum + project.fee, 0);
-    if (!window.confirm(`Registrar como em aberto e enviar a fatura de ${chosen.length} projeto(s), no total de ${brl(monthlyTotal)}, para ${c.name} (${c.email})?\n\nProjetos que já têm fatura neste mês não são duplicados.`)) return;
-    setSendingClient(c.id);
+    if (
+      !window.confirm(
+        `Registrar como em aberto e enviar a fatura de ${chosen.length} projeto(s), no total de ${brl(monthlyTotal)}, para ${client.name} (${client.email})?\n\nProjetos que já têm fatura neste mês não são duplicados.`,
+      )
+    ) {
+      return;
+    }
+    setSendingClient(client.id);
     try {
-      const r = await sendSelectedClientInvoices({ data: { clientId: c.id, projectIds } });
-      toast.success(`Fatura de ${brl(r.total)} ${r.created ? "registrada em aberto e " : ""}enviada para ${c.name}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível enviar a fatura");
+      const result = await sendSelectedClientInvoices({
+        data: { clientId: client.id, projectIds },
+      });
+      toast.success(
+        `Fatura de ${brl(result.total)} ${result.created ? "registrada em aberto e " : ""}enviada para ${client.name}`,
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar a fatura");
     } finally {
       setSendingClient(null);
-      await refresh(); // atualiza em aberto, histórico do cliente e totais (mesmo se o e-mail falhar após registrar)
+      await refresh();
       void qc.invalidateQueries({ queryKey: ["dashboard"] });
     }
   }
-  async function sendOne(i: ClientInvoice, c: ClientRow) {
-    if (!window.confirm(`Enviar a fatura de ${i.projectName} agora para ${c.email}?`)) return;
-    setSendingInvoice(i.id);
-    try { await sendInvoiceNow({ data: { invoiceId: i.id } }); toast.success("Fatura enviada ao cliente"); }
-    catch (e) { toast.error(e instanceof Error ? e.message : "Não foi possível enviar a fatura"); }
-    finally { setSendingInvoice(null); }
+
+  async function sendOne(invoice: ClientInvoice, client: ClientRow) {
+    if (!window.confirm(`Enviar a fatura de ${invoice.projectName} agora para ${client.email}?`)) {
+      return;
+    }
+    setSendingInvoice(invoice.id);
+    try {
+      await sendInvoiceNow({ data: { invoiceId: invoice.id } });
+      toast.success("Fatura enviada ao cliente");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar a fatura");
+    } finally {
+      setSendingInvoice(null);
+    }
   }
 
-  async function markPaid(i: ClientInvoice) {
-    const { error } = await supabase.from("invoices").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", i.id);
+  async function markPaid(invoice: ClientInvoice) {
+    const { error } = await supabase
+      .from("invoices")
+      .update({ status: "paid", paid_at: new Date().toISOString() })
+      .eq("id", invoice.id);
     if (error) return toast.error(error.message);
-    toast.success("Baixa registrada"); refresh();
-    notifyInvoicePaid({ data: { invoiceId: i.id } })
-      .then((r) => r.sent && toast.success("Agradecimento enviado ao cliente"))
+
+    toast.success("Baixa registrada");
+    void refresh();
+    notifyInvoicePaid({ data: { invoiceId: invoice.id } })
+      .then((result) => result.sent && toast.success("Agradecimento enviado ao cliente"))
       .catch(() => toast.error("Baixa feita, mas o e-mail de agradecimento falhou"));
   }
 
   return (
     <div className="space-y-6">
-      <PageTitle title="Financeiro & Recorrência" subtitle="Mensalidade R$ 147 (contratos a partir de agosto) ou R$ 200 — virada para R$ 200 em 1º de janeiro."
-        action={isOwner && <Button onClick={async () => {
-          try { const r = await generateMonthInvoices(); toast.success(`${r.created} fatura(s) gerada(s)`); qc.invalidateQueries({ queryKey: ["finance"] }); }
-          catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
-        }}><Receipt className="h-4 w-4" /> Gerar faturas do mês</Button>} />
+      <PageTitle
+        title="Financeiro & Recorrência"
+        subtitle="Mensalidade R$ 147 (contratos a partir de agosto) ou R$ 200 — virada para R$ 200 em 1º de janeiro."
+        action={
+          isOwner && (
+            <Button
+              onClick={async () => {
+                try {
+                  const result = await generateMonthInvoices();
+                  toast.success(`${result.created} fatura(s) gerada(s)`);
+                  void qc.invalidateQueries({ queryKey: ["finance"] });
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Erro ao gerar faturas");
+                }
+              }}
+            >
+              <Receipt className="h-4 w-4" /> Gerar faturas do mês
+            </Button>
+          )
+        }
+      />
+
+      {financeIsError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive"
+        >
+          Não foi possível carregar os dados do Financeiro. Atualize a página ou verifique as
+          permissões e a conexão com o banco. Detalhe: {financeError.message}
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Recorrência mensal" value={brl(mrr)} />
         <StatCard label="Total recebido" value={brl(received)} />
-        <StatCard label="Em aberto" value={brl(open.reduce((s, i) => s + Number(i.amount), 0))} hint={`${open.length} fatura(s)`} />
+        <StatCard
+          label="Em aberto"
+          value={brl(open.reduce((sum, invoice) => sum + Number(invoice.amount), 0))}
+          hint={`${open.length} fatura(s)`}
+        />
       </div>
-      <Panel title="Clientes e faturas" action={<Badge variant="outline" className={data?.billingOn ? "border-success text-success" : "border-warning text-warning"}>Cobrança automática {data?.billingOn ? "ligada" : "desligada"}</Badge>}>
-        <FinanceClients rows={rows} actions={{ isOwner, sendingClient, sendingInvoice, onSendClient: sendClient, onSendInvoice: sendOne, onMarkPaid: markPaid }} />
+
+      <Panel
+        title="Clientes e faturas"
+        action={
+          <Badge
+            variant="outline"
+            className={
+              data?.billingOn ? "border-success text-success" : "border-warning text-warning"
+            }
+          >
+            Cobrança automática {data?.billingOn ? "ligada" : "desligada"}
+          </Badge>
+        }
+      >
+        <FinanceClients
+          rows={rows}
+          actions={{
+            isOwner,
+            sendingClient,
+            sendingInvoice,
+            onSendClient: sendClient,
+            onSendInvoice: sendOne,
+            onMarkPaid: markPaid,
+          }}
+        />
       </Panel>
+
       <Panel title="Dados de pagamento">
-        <p className="text-sm text-muted-foreground">Chave PIX (e-mail): <span className="font-mono text-foreground">{PIX_KEY}</span> — em nome da responsável legal da Synex Digital Presence.</p>
+        <p className="text-sm text-muted-foreground">
+          Chave PIX (e-mail): <span className="font-mono text-foreground">{PIX_KEY}</span> — em
+          nome da responsável legal da Synex Digital Presence.
+        </p>
       </Panel>
     </div>
   );
