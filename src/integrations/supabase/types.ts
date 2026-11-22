@@ -361,6 +361,7 @@ export type Database = {
           contract_start: string
           created_at: string
           ga4_property_id: string | null
+          google_drive_url: string | null
           id: string
           instagram_handle: string | null
           is_ecommerce: boolean
@@ -380,6 +381,7 @@ export type Database = {
           contract_start?: string
           created_at?: string
           ga4_property_id?: string | null
+          google_drive_url?: string | null
           id?: string
           instagram_handle?: string | null
           is_ecommerce?: boolean
@@ -399,6 +401,7 @@ export type Database = {
           contract_start?: string
           created_at?: string
           ga4_property_id?: string | null
+          google_drive_url?: string | null
           id?: string
           instagram_handle?: string | null
           is_ecommerce?: boolean
