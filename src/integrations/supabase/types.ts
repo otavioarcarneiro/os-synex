@@ -360,7 +360,6 @@ export type Database = {
           client_id: string
           contract_start: string
           created_at: string
-          ga4_property_id: string | null
           google_drive_url: string | null
           id: string
           instagram_handle: string | null
@@ -380,7 +379,6 @@ export type Database = {
           client_id: string
           contract_start?: string
           created_at?: string
-          ga4_property_id?: string | null
           google_drive_url?: string | null
           id?: string
           instagram_handle?: string | null
@@ -400,7 +398,6 @@ export type Database = {
           client_id?: string
           contract_start?: string
           created_at?: string
-          ga4_property_id?: string | null
           google_drive_url?: string | null
           id?: string
           instagram_handle?: string | null
