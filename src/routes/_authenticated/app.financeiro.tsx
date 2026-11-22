@@ -5,8 +5,8 @@ import { Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/hooks/use-me";
-import { generateMonthInvoices, notifyInvoicePaid, sendInvoiceNow } from "@/lib/admin.functions";
-import { sendSelectedClientInvoices } from "@/lib/selected-client-invoices.functions";
+import { generateMonthInvoices, notifyInvoicePaid } from "@/lib/admin.functions";
+import { sendClientInvoiceReminder, sendSelectedClientInvoices } from "@/lib/selected-client-invoices.functions";
 import { brl, monthlyFee } from "@/lib/pricing";
 import { PageTitle, Panel, StatCard, PIX_KEY } from "@/components/synex/ui-bits";
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,7 @@ function Finance() {
   const { data: me } = useMe();
   const qc = useQueryClient();
   const isOwner = me?.primaryRole === "owner";
-  const [sendingInvoice, setSendingInvoice] = useState<string | null>(null);
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null);
   const [sendingClient, setSendingClient] = useState<string | null>(null);
 
   const {
@@ -57,7 +57,7 @@ function Finance() {
       const [inv, proj, settings, roles] = await Promise.all([
         supabase
           .from("invoices")
-          .select("id,project_id,amount,due_date,status,paid_at")
+          .select("id,project_id,amount,due_date,status,paid_at,sent_at")
           .order("due_date", { ascending: false }),
         supabase
           .from("projects")
@@ -135,7 +135,7 @@ function Finance() {
         data: { clientId: client.id, projectIds },
       });
       toast.success(
-        `Fatura de ${brl(result.total)} ${result.created ? "registrada em aberto e " : ""}enviada para ${client.name}`,
+        `Fatura de ${brl(result.total)} registrada em aberto e enviada para ${client.name}`,
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível enviar a fatura");
@@ -146,18 +146,17 @@ function Finance() {
     }
   }
 
-  async function sendOne(invoice: ClientInvoice, client: ClientRow) {
-    if (!window.confirm(`Enviar a fatura de ${invoice.projectName} agora para ${client.email}?`)) {
-      return;
-    }
-    setSendingInvoice(invoice.id);
+  async function sendReminder(client: ClientRow) {
+    if (!window.confirm(`Reenviar as faturas em aberto para ${client.email}?`)) return;
+    setSendingReminder(client.id);
     try {
-      await sendInvoiceNow({ data: { invoiceId: invoice.id } });
-      toast.success("Fatura enviada ao cliente");
+      await sendClientInvoiceReminder({ data: { clientId: client.id } });
+      toast.success("Lembrete enviado ao cliente");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível enviar a fatura");
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o lembrete");
     } finally {
-      setSendingInvoice(null);
+      setSendingReminder(null);
+      await refresh();
     }
   }
 
@@ -237,9 +236,9 @@ function Finance() {
           actions={{
             isOwner,
             sendingClient,
-            sendingInvoice,
+            sendingReminder,
             onSendClient: sendClient,
-            onSendInvoice: sendOne,
+            onSendReminder: sendReminder,
             onMarkPaid: markPaid,
           }}
         />

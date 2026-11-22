@@ -15,7 +15,7 @@ const projects: ProjectRow[] = [
   { id: "p3", name: "Site Álvaro", kind: "site", client_id: "c2", billing_enabled: false, contract_start: "2026-09-01" },
   { id: "p4", name: "Site Zélia", kind: "site", client_id: "c4", billing_enabled: true, contract_start: "2026-01-05" },
 ];
-const inv = (id: string, project_id: string, due_date: string, status: string, amount = 147, paid_at: string | null = null): InvoiceRow => ({ id, project_id, amount, due_date, status, paid_at });
+const inv = (id: string, project_id: string, due_date: string, status: string, amount = 147, paid_at: string | null = null): InvoiceRow => ({ id, project_id, amount, due_date, status, paid_at, sent_at: null });
 const invoices: InvoiceRow[] = [
   inv("i1", "p1", "2026-11-05", "pending"),                    // vencida
   inv("i2", "p2", "2026-12-05", "pending", 200),               // a vencer
