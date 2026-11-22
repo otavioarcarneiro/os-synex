@@ -266,13 +266,3 @@ export const releaseTwoFactor = createServerFn({ method: "POST" })
     await supabaseAdmin.from("audit_logs").insert({ actor_id: context.userId, target_id: data.userId, action: "unlock", reason: "Liberação manual do 2FA pelo Proprietário", payload: { kind: "2fa" } });
     return { ok: true };
   });
-
-// Cobrança manual de todas as faturas pendentes de um cliente, em um único e-mail (somente proprietário).
-export const sendClientInvoices = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ clientId: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    await assertOwner(context);
-    const { sendClientInvoicesManually } = await import("./billing.server");
-    return sendClientInvoicesManually(data.clientId);
-  });

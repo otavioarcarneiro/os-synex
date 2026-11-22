@@ -158,24 +158,18 @@ export async function sendPaymentThanks(invoiceId: string) {
 // "Enviar fatura": REGISTRA a fatura do mês como em aberto (1 por projeto/mês, sem duplicar) e envia o e-mail ao cliente.
 // A fatura registrada entra nos totais em aberto, aparece no histórico do cliente e pode ser baixada ("Marcar pago"),
 // o que dispara o agradecimento e soma no total recebido. Não altera reminder_sent_at / due_notice_sent_at / thanks_sent_at.
-async function registerAndSendInvoices(clientId: string, projectIds: string[] | "billing") {
+async function registerAndSendInvoices(clientId: string, projectIds: string[]) {
   const db = await admin();
   const { data: prof, error: profileError } = await db.from("profiles").select("full_name,email").eq("id", clientId).maybeSingle();
   if (profileError || !prof) throw new Error("Cliente não encontrado.");
   if (!prof.email) throw new Error("O cliente não tem e-mail cadastrado.");
 
-  let uniqueIds: string[] = [];
-  let query = db.from("projects").select("id,name,contract_start").eq("client_id", clientId).order("name", { ascending: true });
-  if (projectIds === "billing") query = query.eq("billing_enabled", true);
-  else {
-    if (!projectIds.length) throw new Error("Selecione pelo menos um projeto.");
-    uniqueIds = [...new Set(projectIds)];
-    query = query.in("id", uniqueIds);
-  }
-  const { data: projects, error: projectsError } = await query;
+  if (!projectIds.length) throw new Error("Selecione pelo menos um projeto.");
+  const uniqueIds = [...new Set(projectIds)];
+  const { data: projects, error: projectsError } = await db.from("projects").select("id,name,contract_start")
+    .eq("client_id", clientId).in("id", uniqueIds).order("name", { ascending: true });
   if (projectsError) throw new Error("Não foi possível carregar os projetos do cliente.");
-  if (!projects?.length) throw new Error(projectIds === "billing" ? "Este cliente não tem projetos com cobrança recorrente ativa." : "Um ou mais projetos selecionados não pertencem a este cliente.");
-  if (projectIds !== "billing" && projects.length !== uniqueIds.length) throw new Error("Um ou mais projetos selecionados não pertencem a este cliente.");
+  if (!projects?.length || projects.length !== uniqueIds.length) throw new Error("Um ou mais projetos selecionados não pertencem a este cliente.");
 
   const { data: existing, error: invoicesError } = await db.from("invoices").select("project_id,status,due_date,amount").in("project_id", projects.map((p: { id: string }) => p.id));
   if (invoicesError) throw new Error("Não foi possível verificar as faturas já registradas.");
@@ -203,8 +197,6 @@ async function registerAndSendInvoices(clientId: string, projectIds: string[] | 
   return { count: plan.items.length, total: plan.total, created: plan.toCreate.length, skipped: plan.skipped };
 }
 
-// Projetos com cobrança recorrente ligada (mantida para admin.functions.ts).
-export const sendClientInvoicesManually = (clientId: string) => registerAndSendInvoices(clientId, "billing");
 // Projetos escolhidos pelo proprietário na tela do Financeiro.
 export const sendSelectedClientInvoicesManually = (clientId: string, projectIds: string[]) => registerAndSendInvoices(clientId, projectIds);
 

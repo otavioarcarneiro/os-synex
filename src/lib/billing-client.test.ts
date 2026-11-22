@@ -29,7 +29,7 @@ vi.mock("@/integrations/supabase/client.server", () => {
 });
 vi.mock("./email.server", async () => ({ ...(await vi.importActual<typeof import("./email.server")>("./email.server")), sendEmail }));
 
-import { sendClientInvoicesManually, sendSelectedClientInvoicesManually } from "./billing.server";
+import { sendSelectedClientInvoicesManually } from "./billing.server";
 import { FROM_FINANCEIRO } from "./email.server";
 
 const THIS_MONTH = new Date();
@@ -119,17 +119,5 @@ describe("Enviar fatura: registra em aberto e envia o e-mail", () => {
     db.loadError = { message: "db" };
     await expect(sendSelectedClientInvoicesManually("c1", ["p1"])).rejects.toThrow("carregar");
     expect(db.inserted).toEqual([]);
-  });
-});
-
-describe("envio dos projetos com cobrança ligada (compatibilidade)", () => {
-  it("usa só os projetos recorrentes e também registra em aberto", async () => {
-    const r = await sendClientInvoicesManually("c1");
-    expect(r).toMatchObject({ count: 1, total: 147, created: 1 });
-    expect(db.invoices.map((i) => i.project_id)).toEqual(["p1"]);
-  });
-  it("sem projeto recorrente: recusa", async () => {
-    db.projects = db.projects.map((p) => ({ ...p, billing_enabled: false }));
-    await expect(sendClientInvoicesManually("c1")).rejects.toThrow("recorrente");
   });
 });
