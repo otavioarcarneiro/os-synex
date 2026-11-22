@@ -5,6 +5,7 @@ import { Camera, KeyRound, LogOut, ShieldCheck, User } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe, permissionsFor, ROLE_LABEL, DEPT_LABEL, type Me } from "@/hooks/use-me";
+import { PushToggle } from "@/components/synex/pwa-prompt";
 import { signOutEverywhere } from "@/lib/session-client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -107,6 +108,7 @@ function ProfileBody({ me }: { me: Me }) {
       </div>
 
       <Button variant="secondary" className="w-full" onClick={() => setPwOpen(true)}><KeyRound className="h-4 w-4" /> Alterar senha</Button>
+      {me.primaryRole !== "client" && <div className="flex justify-center"><PushToggle me={me} /></div>}
       <Button variant="destructive" className="w-full" onClick={async () => { await signOutEverywhere(qc); navigate({ to: "/auth", replace: true }); }}>
         <LogOut className="h-4 w-4" /> Encerrar sessão
       </Button>

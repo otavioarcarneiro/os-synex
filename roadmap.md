@@ -18,6 +18,7 @@
 - [ ] E-mails de cobrança (3 dias antes / vencimento / agradecimento) — precisa de domínio de e-mail
 - [ ] Alerta de queda no WhatsApp — precisa de serviço de WhatsApp
 - [x] Agendar uptime a cada 30 min
+- [x] Etapa 5: convite de instalação e notificações no aparelho (envio real a confirmar após publicar)
 - [ ] Métricas Instagram — precisam da conta conectada; GA4 substituído por Synex Analytics
 - [x] Google exclusivo para usuários previamente autorizados (sem Apple)
 - [ ] Validar autorização Google com escolha real da conta — requer interação do usuário no Google

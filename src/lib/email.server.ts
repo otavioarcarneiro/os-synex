@@ -1,4 +1,5 @@
 // Envio de e-mails institucionais da Synex via Resend (servidor apenas).
+import { pushToOwners } from "./push.server";
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 export const OWNER_ALERT_EMAIL = "otavio.arcarneiro@gmail.com";
 export const FROM_SUPORTE = "Synex Suporte <suporte@synexdigital.com.br>";
@@ -48,10 +49,12 @@ export async function sendDownAlert(p: { name: string; url: string | null }) {
     `O monitoramento detectou queda em <b>${esc(p.name)}</b>.`,
     `Endereço: ${esc(p.url ?? "-")}`, `Horário: ${nowBR()}`,
   ], { label: "Abrir Projetos", url: `${APP_URL}/app/projetos` });
+  await pushToOwners("uptime_down", { title: "Site fora do ar", body: p.name, url: "/app/projetos" });
   await sendEmail(FROM_UPTIME, OWNER_ALERT_EMAIL, `Queda detectada: ${p.name}`, html);
 }
 
 export async function sendLockAlert(p: { email: string; ip?: string; device?: string; browser?: string; os?: string }) {
+  await pushToOwners("login_lock", { title: "Login bloqueado", body: p.email, url: "/app/restrita" });
   const html = layout("Login bloqueado por tempo indeterminado", [
     `Após 6 tentativas com erro, o acesso foi retido. <b>Somente o proprietário pode liberar.</b>`,
     `Conta tentada: ${esc(p.email)}`,
@@ -111,6 +114,7 @@ export function twoFactorHelpHtml(p: { name: string | null; email: string; ip?: 
   ], { label: "Abrir Central e liberar acesso", url: `${APP_URL}/app/notificacoes` });
 }
 export async function sendTwoFactorHelpEmail(p: { name: string | null; email: string; fp: { ip?: string; device?: string; os?: string; browser?: string } }) {
+  await pushToOwners("sac", { title: "Pedido de liberação de acesso", body: p.name || p.email, url: "/app/notificacoes" });
   await sendEmail(FROM_SAC, OWNER_ALERT_EMAIL, `Pedido de liberação de acesso: ${p.name || p.email}`, twoFactorHelpHtml({ name: p.name, email: p.email, ...p.fp }));
 }
 
