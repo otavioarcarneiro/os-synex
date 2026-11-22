@@ -1,3 +1,4 @@
+
 import { useMemo, useState } from "react";
 import { CheckCircle2, Mail, Phone, Repeat, Search, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -78,23 +79,52 @@ export function FinanceClients({ rows, actions }: { rows: ClientRow[]; actions: 
         <ul className="space-y-3">
           {shown.map((c) => (
             <li key={c.id}>
-              <div onClick={() => setSelectedId(c.id)}
-                className="flex cursor-pointer flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-[#222733] p-4 transition-colors hover:bg-[#2a3040] focus-within:ring-2 focus-within:ring-primary">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{initials(c.name)}</div>
-                <div className="min-w-48 flex-1">
-                  <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedId(c.id); }} className="text-left font-medium hover:underline focus-visible:outline-none" aria-label={`Abrir ${c.name}`}>{c.name}</button>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    {c.projects.length === 0 ? <span className="text-xs text-muted-foreground">Sem projetos</span> : c.projects.map((p) => (
-                      <Badge key={p.id} variant="outline" className="border-white/15 text-xs font-normal">{p.name}</Badge>
-                    ))}
+              <div className="overflow-hidden rounded-xl border border-white/10 bg-[#222733]">
+                <div onClick={() => setSelectedId(c.id)}
+                  className="flex cursor-pointer flex-wrap items-center gap-3 p-4 transition-colors hover:bg-[#2a3040] focus-within:ring-2 focus-within:ring-primary">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{initials(c.name)}</div>
+                  <div className="min-w-48 flex-1">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedId(c.id); }} className="text-left font-medium hover:underline focus-visible:outline-none" aria-label={`Abrir ${c.name}`}>{c.name}</button>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {c.projects.length === 0 ? <span className="text-xs text-muted-foreground">Sem projetos</span> : c.projects.map((p) => (
+                        <Badge key={p.id} variant="outline" className="border-white/15 text-xs font-normal">{p.name}</Badge>
+                      ))}
+                    </div>
                   </div>
+                  <div className="text-right">
+                    <p className="flex items-center justify-end gap-1.5 font-mono text-sm"><Repeat className="h-3.5 w-3.5 text-muted-foreground" />{c.monthly ? `${brl(c.monthly)}/mês` : "Sem recorrência"}</p>
+                    <p className="text-xs text-muted-foreground">{c.openCount ? `${brl(c.openAmount)} em aberto` : "Nada em aberto"}</p>
+                  </div>
+                  <Badge variant="outline" className={STATUS[c.status].cls}>{STATUS[c.status].label}</Badge>
+                  <SendClientButton c={c} a={actions} onChoose={chooseClient} />
                 </div>
-                <div className="text-right">
-                  <p className="flex items-center justify-end gap-1.5 font-mono text-sm"><Repeat className="h-3.5 w-3.5 text-muted-foreground" />{c.monthly ? `${brl(c.monthly)}/mês` : "Sem recorrência"}</p>
-                  <p className="text-xs text-muted-foreground">{c.openCount ? `${brl(c.openAmount)} em aberto` : "Nada em aberto"}</p>
-                </div>
-                <Badge variant="outline" className={STATUS[c.status].cls}>{STATUS[c.status].label}</Badge>
-                <SendClientButton c={c} a={actions} onChoose={chooseClient} />
+
+                {c.openCount > 0 && (
+                  <div className="border-t border-white/10 px-4 py-3">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Faturas em aberto</p>
+                      <span className="text-xs text-muted-foreground">{c.openCount} pendente(s)</span>
+                    </div>
+                    <ul className="space-y-2">
+                      {c.invoices.filter((i) => i.status === "pending").map((i) => (
+                        <li key={i.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-white/10 bg-black/10 px-3 py-2">
+                          <div className="min-w-36 flex-1">
+                            <p className="text-sm font-medium">{i.projectName}</p>
+                            <p className={cn("text-xs", i.overdue ? "text-danger" : "text-muted-foreground")}>
+                              {i.overdue ? "Vencida" : "Vencimento"} · {date(i.dueDate)}
+                            </p>
+                          </div>
+                          <span className="whitespace-nowrap font-mono text-sm font-medium">{brl(i.amount)}</span>
+                          {actions.isOwner && (
+                            <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); actions.onMarkPaid(i); }}>
+                              <CheckCircle2 className="h-4 w-4" /> Marcar pago
+                            </Button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </li>
           ))}
