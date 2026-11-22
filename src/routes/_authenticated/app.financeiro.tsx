@@ -5,7 +5,8 @@ import { Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/hooks/use-me";
-import { generateMonthInvoices, notifyInvoicePaid, sendClientInvoices, sendInvoiceNow } from "@/lib/admin.functions";
+import { generateMonthInvoices, notifyInvoicePaid, sendInvoiceNow } from "@/lib/admin.functions";
+import { sendSelectedClientInvoices } from "@/lib/selected-client-invoices.functions";
 import { brl, monthlyFee } from "@/lib/pricing";
 import { PageTitle, Panel, StatCard, PIX_KEY } from "@/components/synex/ui-bits";
 import { Button } from "@/components/ui/button";
@@ -44,13 +45,14 @@ function Finance() {
   const rows = useMemo(() => buildClientRows(data?.clients ?? [], data?.projects ?? [], data?.invoices ?? [], today), [data, today]);
   const refresh = () => qc.invalidateQueries({ queryKey: ["finance"] });
 
-  async function sendClient(c: ClientRow) {
-    const recurringProjects = c.projects.filter((project) => project.billing);
-    const monthlyTotal = recurringProjects.reduce((sum, project) => sum + project.fee, 0);
-    if (!window.confirm(`Enviar a cobrança mensal atual de ${recurringProjects.length} projeto(s), no total de ${brl(monthlyTotal)}, para ${c.name} (${c.email})?`)) return;
+  async function sendClient(c: ClientRow, projectIds: string[]) {
+    const chosen = c.projects.filter((project) => projectIds.includes(project.id));
+    if (!chosen.length) return;
+    const monthlyTotal = chosen.reduce((sum, project) => sum + project.fee, 0);
+    if (!window.confirm(`Enviar uma cobrança com ${chosen.length} projeto(s), no total de ${brl(monthlyTotal)}, para ${c.name} (${c.email})?`)) return;
     setSendingClient(c.id);
     try {
-      const r = await sendClientInvoices({ data: { clientId: c.id } });
+      const r = await sendSelectedClientInvoices({ data: { clientId: c.id, projectIds } });
       toast.success(`Cobrança de ${r.count} projeto(s) enviada para ${c.name} (${brl(r.total)})`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível enviar a cobrança");

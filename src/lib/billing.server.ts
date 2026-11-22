@@ -44,9 +44,9 @@ export async function sendPaymentThanks(invoiceId: string) {
   catch (e) { await db.from("invoices").update({ thanks_sent_at: null }).eq("id", invoiceId); throw e; }
 }
 
-// Cobrança manual de um cliente: calcula a mensalidade vigente dos projetos recorrentes
-// e envia o e-mail diretamente, sem consultar ou alterar a tabela invoices.
-export async function sendClientInvoicesManually(clientId: string) {
+// Envio manual selecionado: usa todos os projetos escolhidos, independentemente da recorrência.
+// Não cria, consulta nem altera registros na tabela invoices.
+export async function sendSelectedClientInvoicesManually(clientId: string, projectIds: string[]) {
   const db = await admin();
   const { data: prof, error: profileError } = await db
     .from("profiles")
@@ -56,16 +56,18 @@ export async function sendClientInvoicesManually(clientId: string) {
 
   if (profileError || !prof) throw new Error("Cliente não encontrado.");
   if (!prof.email) throw new Error("O cliente não tem e-mail cadastrado.");
+  if (!projectIds.length) throw new Error("Selecione pelo menos um projeto.");
 
+  const uniqueIds = [...new Set(projectIds)];
   const { data: projects, error: projectsError } = await db
     .from("projects")
     .select("id,name,contract_start")
     .eq("client_id", clientId)
-    .eq("billing_enabled", true)
+    .in("id", uniqueIds)
     .order("name", { ascending: true });
 
-  if (projectsError) throw new Error("Não foi possível carregar os projetos recorrentes deste cliente.");
-  if (!projects?.length) throw new Error("Este cliente não tem projetos com cobrança recorrente ativa.");
+  if (projectsError) throw new Error("Não foi possível carregar os projetos selecionados.");
+  if (!projects?.length || projects.length !== uniqueIds.length) throw new Error("Um ou mais projetos selecionados não pertencem a este cliente.");
 
   const now = new Date();
   const today = ymd(now);
@@ -85,13 +87,7 @@ export async function sendClientInvoicesManually(clientId: string) {
     ? `Cobrança Synex — ${items[0].project} — ${dateBR(items[0].due_date)}`
     : `Cobrança Synex — ${items.length} projetos — total ${brl(total)}`;
 
-  await sendEmail(
-    FROM_FINANCEIRO,
-    prof.email,
-    subject,
-    clientInvoicesHtml(prof.full_name || "cliente", items),
-  );
-
+  await sendEmail(FROM_FINANCEIRO, prof.email, subject, clientInvoicesHtml(prof.full_name || "cliente", items));
   return { count: items.length, total };
 }
 

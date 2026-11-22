@@ -21,16 +21,17 @@ const KIND: Record<string, string> = { site: "Site", instagram: "Instagram" };
 type Actions = {
   isOwner: boolean;
   sendingClient: string | null; sendingInvoice: string | null;
-  onSendClient: (c: ClientRow) => void; onSendInvoice: (i: ClientInvoice, c: ClientRow) => void; onMarkPaid: (i: ClientInvoice) => void;
+  onSendClient: (c: ClientRow, projectIds: string[]) => void;
+  onSendInvoice: (i: ClientInvoice, c: ClientRow) => void;
+  onMarkPaid: (i: ClientInvoice) => void;
 };
 
-function SendClientButton({ c, a, size = "sm" }: { c: ClientRow; a: Actions; size?: "sm" | "default" }) {
+function SendClientButton({ c, a, size = "sm", onChoose }: { c: ClientRow; a: Actions; size?: "sm" | "default"; onChoose: (c: ClientRow) => void }) {
   if (!a.isOwner) return null;
-  const hasRecurringProject = c.projects.some((project) => project.billing);
-  const disabled = a.sendingClient === c.id || !hasRecurringProject || !c.email;
+  const disabled = a.sendingClient === c.id || !c.email || c.projects.length === 0;
   return (
-    <Button size={size} variant="outline" disabled={disabled} onClick={(e) => { e.stopPropagation(); a.onSendClient(c); }}
-      title={!c.email ? "Cliente sem e-mail cadastrado" : !hasRecurringProject ? "Nenhum projeto com cobrança recorrente ativa" : undefined}>
+    <Button size={size} variant="outline" disabled={disabled} onClick={(e) => { e.stopPropagation(); onChoose(c); }}
+      title={!c.email ? "Cliente sem e-mail cadastrado" : c.projects.length === 0 ? "Cliente sem projetos cadastrados" : undefined}>
       <Send className="h-4 w-4" /> {a.sendingClient === c.id ? "Enviando…" : "Enviar fatura"}
     </Button>
   );
@@ -39,8 +40,33 @@ function SendClientButton({ c, a, size = "sm" }: { c: ClientRow; a: Actions; siz
 export function FinanceClients({ rows, actions }: { rows: ClientRow[]; actions: Actions }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectionClient, setSelectionClient] = useState<ClientRow | null>(null);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const shown = useMemo(() => filterClients(rows, query), [rows, query]);
   const selected = rows.find((r) => r.id === selectedId) ?? null;
+
+  function chooseClient(c: ClientRow) {
+    if (c.projects.length === 1) {
+      actions.onSendClient(c, [c.projects[0].id]);
+      return;
+    }
+    setSelectionClient(c);
+    setSelectedProjectIds(c.projects.map((p) => p.id));
+  }
+
+  function toggleProject(id: string, checked: boolean) {
+    setSelectedProjectIds((current) => checked ? [...current, id] : current.filter((item) => item !== id));
+  }
+
+  function sendSelected() {
+    if (!selectionClient || selectedProjectIds.length === 0) return;
+    const client = selectionClient;
+    const ids = [...selectedProjectIds];
+    setSelectionClient(null);
+    actions.onSendClient(client, ids);
+  }
+
+  const allSelected = !!selectionClient && selectionClient.projects.length > 0 && selectedProjectIds.length === selectionClient.projects.length;
 
   return (
     <>
@@ -68,7 +94,7 @@ export function FinanceClients({ rows, actions }: { rows: ClientRow[]; actions: 
                   <p className="text-xs text-muted-foreground">{c.openCount ? `${brl(c.openAmount)} em aberto` : "Nada em aberto"}</p>
                 </div>
                 <Badge variant="outline" className={STATUS[c.status].cls}>{STATUS[c.status].label}</Badge>
-                <SendClientButton c={c} a={actions} />
+                <SendClientButton c={c} a={actions} onChoose={chooseClient} />
               </div>
             </li>
           ))}
@@ -77,14 +103,55 @@ export function FinanceClients({ rows, actions }: { rows: ClientRow[]; actions: 
 
       <Dialog open={!!selected} onOpenChange={(o) => { if (!o) setSelectedId(null); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto border-border bg-card sm:max-w-3xl">
-          {selected && <ClientDetail c={selected} a={actions} />}
+          {selected && <ClientDetail c={selected} a={actions} onChoose={chooseClient} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectionClient} onOpenChange={(open) => { if (!open) setSelectionClient(null); }}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto border-border bg-card sm:max-w-xl">
+          {selectionClient && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Selecionar projetos para cobrança</DialogTitle>
+                <DialogDescription>Escolha quais projetos de {selectionClient.name} serão incluídos em um único e-mail. A recorrência pode estar ligada ou desligada.</DialogDescription>
+              </DialogHeader>
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                <span className="text-sm font-medium">Selecionar todos os projetos</span>
+                <Button type="button" size="sm" variant="outline" onClick={() => setSelectedProjectIds(allSelected ? [] : selectionClient.projects.map((p) => p.id))}>
+                  {allSelected ? "Desmarcar todos" : "Selecionar todos"}
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {selectionClient.projects.map((p) => (
+                  <label key={p.id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/40">
+                    <input type="checkbox" className="h-4 w-4 accent-primary" checked={selectedProjectIds.includes(p.id)} onChange={(e) => toggleProject(p.id, e.target.checked)} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium">{p.name}</span>
+                      <span className="block text-xs text-muted-foreground">{KIND[p.kind] ?? p.kind} · cobrança {p.billing ? "ligada" : "desligada"}</span>
+                    </span>
+                    <span className="whitespace-nowrap font-mono text-sm">{brl(p.fee)}/mês</span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex items-center justify-between border-t border-border pt-3">
+                <span className="text-sm text-muted-foreground">{selectedProjectIds.length} de {selectionClient.projects.length} selecionados</span>
+                <span className="font-mono font-semibold">{brl(selectionClient.projects.filter((p) => selectedProjectIds.includes(p.id)).reduce((sum, p) => sum + p.fee, 0))}</span>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setSelectionClient(null)}>Cancelar</Button>
+                <Button type="button" disabled={selectedProjectIds.length === 0 || actions.sendingClient === selectionClient.id} onClick={sendSelected}>
+                  <Send className="h-4 w-4" /> Enviar cobrança
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </>
   );
 }
 
-function ClientDetail({ c, a }: { c: ClientRow; a: Actions }) {
+function ClientDetail({ c, a, onChoose }: { c: ClientRow; a: Actions; onChoose: (c: ClientRow) => void }) {
   return (
     <>
       <DialogHeader>
@@ -118,7 +185,7 @@ function ClientDetail({ c, a }: { c: ClientRow; a: Actions }) {
       </div>
 
       <section>
-        <div className="mb-2 flex items-center justify-between"><h3 className="font-display text-sm font-semibold">Projetos</h3><SendClientButton c={c} a={a} /></div>
+        <div className="mb-2 flex items-center justify-between"><h3 className="font-display text-sm font-semibold">Projetos</h3><SendClientButton c={c} a={a} onChoose={onChoose} /></div>
         {c.projects.length === 0 ? <p className="text-sm text-muted-foreground">Este cliente ainda não tem projetos.</p> : (
           <ul className="divide-y divide-border rounded-xl border border-white/10 bg-[#222733]">
             {c.projects.map((p) => (
