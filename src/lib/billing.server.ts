@@ -1,4 +1,4 @@
-import { FROM_FINANCEIRO, dateBR, invoiceHtml, reminderHtml, sendEmail, thanksHtml } from "./email.server";
+import { FROM_FINANCEIRO, brl, clientInvoicesHtml, dateBR, invoiceHtml, reminderHtml, sendEmail, thanksHtml } from "./email.server";
 
 const ymd = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 const SELECT = "id,amount,due_date,status,reminder_sent_at,due_notice_sent_at,thanks_sent_at,project:projects(name,client:profiles!projects_client_id_fkey(email,full_name))";
@@ -55,4 +55,25 @@ export async function sendInvoiceManually(invoiceId: string) {
   const subject = overdue ? `Fatura Synex em atraso — vencimento ${dateBR(row.due_date)}` : `Fatura Synex — vencimento ${dateBR(row.due_date)}`;
   await sendEmail(FROM_FINANCEIRO, to, subject, invoiceHtml(inv, overdue));
   return true;
+}
+
+// Cobrança manual por cliente: um e-mail consolidado com todas as faturas pendentes dos projetos dele.
+// Não altera reminder_sent_at / due_notice_sent_at / thanks_sent_at (agendamentos automáticos intactos).
+export async function sendClientInvoicesManually(clientId: string) {
+  const db = await admin();
+  const { data: prof } = await db.from("profiles").select("full_name,email").eq("id", clientId).maybeSingle();
+  if (!prof) throw new Error("Cliente não encontrado.");
+  if (!prof.email) throw new Error("O cliente não tem e-mail cadastrado.");
+  const { data: rows, error } = await db.from("invoices").select("id,amount,due_date,project:projects!inner(name,client_id)")
+    .eq("status", "pending").eq("project.client_id", clientId).order("due_date", { ascending: true }).limit(50);
+  if (error) throw new Error("Não foi possível carregar as faturas do cliente.");
+  if (!rows?.length) throw new Error("Este cliente não tem faturas pendentes.");
+  const today = ymd(new Date());
+  const items = rows.map((r: any) => ({ project: r.project?.name ?? "Projeto", due_date: r.due_date as string, amount: Number(r.amount), overdue: r.due_date < today }));
+  const total = items.reduce((s: number, i: { amount: number }) => s + i.amount, 0);
+  const subject = items.length === 1
+    ? `Fatura Synex — ${items[0].project} — vencimento ${dateBR(items[0].due_date)}`
+    : `Faturas Synex em aberto — total ${brl(total)}`;
+  await sendEmail(FROM_FINANCEIRO, prof.email, subject, clientInvoicesHtml(prof.full_name || "cliente", items));
+  return { count: items.length, total };
 }

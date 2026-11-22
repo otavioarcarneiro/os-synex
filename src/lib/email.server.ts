@@ -113,3 +113,18 @@ export function twoFactorHelpHtml(p: { name: string | null; email: string; ip?: 
 export async function sendTwoFactorHelpEmail(p: { name: string | null; email: string; fp: { ip?: string; device?: string; os?: string; browser?: string } }) {
   await sendEmail(FROM_SAC, OWNER_ALERT_EMAIL, `Pedido de liberação de acesso: ${p.name || p.email}`, twoFactorHelpHtml({ name: p.name, email: p.email, ...p.fp }));
 }
+
+// Cobrança manual por cliente: um único e-mail com todas as faturas pendentes, total e chave PIX.
+export type ClientInvoiceItem = { project: string; due_date: string; amount: number; overdue: boolean };
+export function clientInvoicesHtml(name: string, items: ClientInvoiceItem[]) {
+  const total = items.reduce((s, i) => s + i.amount, 0);
+  const lines = items.map((i) => `• <b>${esc(i.project)}</b> — vence ${dateBR(i.due_date)}${i.overdue ? " (vencida)" : ""} — <b>${brl(i.amount)}</b>`).join("<br>");
+  return layout(items.some((i) => i.overdue) ? "Faturas Synex em aberto" : "Suas faturas Synex", [
+    `Olá, ${esc(name)}.`,
+    items.length === 1 ? "Segue a fatura em aberto:" : `Seguem as ${items.length} faturas em aberto:`,
+    lines,
+    `Total: <b>${brl(total)}</b>`,
+    `Pagamento via PIX (chave e-mail): <b>${PIX_KEY}</b>`,
+    `Se já pagou, desconsidere esta mensagem.`,
+  ]);
+}

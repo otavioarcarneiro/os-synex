@@ -1,15 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Receipt, Send } from "lucide-react";
+import { Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/hooks/use-me";
-import { generateMonthInvoices, notifyInvoicePaid, sendInvoiceNow } from "@/lib/admin.functions";
+import { generateMonthInvoices, notifyInvoicePaid, sendClientInvoices, sendInvoiceNow } from "@/lib/admin.functions";
 import { brl, monthlyFee } from "@/lib/pricing";
 import { PageTitle, Panel, StatCard, PIX_KEY } from "@/components/synex/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { FinanceClients } from "@/components/synex/finance-clients";
+import { buildClientRows, type ClientInvoice, type ClientRow } from "@/lib/finance-clients";
 
 export const Route = createFileRoute("/_authenticated/app/financeiro")({ head: () => ({ meta: [{ title: "Financeiro — Synex OS" }, { name: "description", content: "Faturas e recorrência da Synex." }, { property: "og:title", content: "Financeiro — Synex OS" }, { property: "og:description", content: "Faturas e recorrência da Synex." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: Finance });
 
@@ -17,16 +19,22 @@ function Finance() {
   const { data: me } = useMe();
   const qc = useQueryClient();
   const isOwner = me?.primaryRole === "owner";
-  const [sending, setSending] = useState<string | null>(null);
+  const [sendingInvoice, setSendingInvoice] = useState<string | null>(null);
+  const [sendingClient, setSendingClient] = useState<string | null>(null);
   const { data } = useQuery({
     queryKey: ["finance"],
     queryFn: async () => {
-      const [inv, proj, settings] = await Promise.all([
-        supabase.from("invoices").select("*, project:projects(name, client:profiles!projects_client_id_fkey(full_name, email))").order("due_date", { ascending: false }),
-        supabase.from("projects").select("id, billing_enabled, contract_start"),
+      const [inv, proj, settings, roles] = await Promise.all([
+        supabase.from("invoices").select("id,project_id,amount,due_date,status,paid_at").order("due_date", { ascending: false }),
+        supabase.from("projects").select("id,name,kind,client_id,billing_enabled,contract_start"),
         supabase.from("system_settings").select("billing_enabled").eq("id", 1).maybeSingle(),
+        supabase.from("user_roles").select("user_id").eq("role", "client"),
       ]);
-      return { invoices: inv.data ?? [], projects: proj.data ?? [], billingOn: settings.data?.billing_enabled ?? false };
+      const projects = proj.data ?? [];
+      // Todos os clientes (papel "client") + donos de projetos, mesmo que o papel não esteja visível.
+      const ids = [...new Set([...(roles.data ?? []).map((r) => r.user_id), ...projects.map((p) => p.client_id)])];
+      const { data: clients } = ids.length ? await supabase.from("profiles").select("id,full_name,email,phone").in("id", ids) : { data: [] };
+      return { invoices: inv.data ?? [], projects, clients: clients ?? [], billingOn: settings.data?.billing_enabled ?? false };
     },
   });
   const invoices = data?.invoices ?? [];
@@ -34,6 +42,31 @@ function Finance() {
   const mrr = (data?.projects ?? []).filter((p) => p.billing_enabled).reduce((s, p) => s + monthlyFee(p.contract_start), 0);
   const received = invoices.filter((i) => i.status === "paid").reduce((s, i) => s + Number(i.amount), 0);
   const open = invoices.filter((i) => i.status === "pending");
+  const rows = useMemo(() => buildClientRows(data?.clients ?? [], data?.projects ?? [], data?.invoices ?? [], today), [data, today]);
+  const refresh = () => qc.invalidateQueries({ queryKey: ["finance"] });
+
+  async function sendClient(c: ClientRow) {
+    if (!window.confirm(`Enviar ${c.openCount > 1 ? `as ${c.openCount} faturas pendentes` : "a fatura pendente"} (${brl(c.openAmount)}) de ${c.name} para ${c.email}?`)) return;
+    setSendingClient(c.id);
+    try { const r = await sendClientInvoices({ data: { clientId: c.id } }); toast.success(`${r.count} fatura(s) enviada(s) a ${c.name}`); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Não foi possível enviar as faturas"); }
+    finally { setSendingClient(null); }
+  }
+  async function sendOne(i: ClientInvoice, c: ClientRow) {
+    if (!window.confirm(`Enviar a fatura de ${i.projectName} agora para ${c.email}?`)) return;
+    setSendingInvoice(i.id);
+    try { await sendInvoiceNow({ data: { invoiceId: i.id } }); toast.success("Fatura enviada ao cliente"); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Não foi possível enviar a fatura"); }
+    finally { setSendingInvoice(null); }
+  }
+  async function markPaid(i: ClientInvoice) {
+    const { error } = await supabase.from("invoices").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", i.id);
+    if (error) return toast.error(error.message);
+    toast.success("Baixa registrada"); refresh();
+    notifyInvoicePaid({ data: { invoiceId: i.id } })
+      .then((r) => r.sent && toast.success("Agradecimento enviado ao cliente"))
+      .catch(() => toast.error("Baixa feita, mas o e-mail de agradecimento falhou"));
+  }
 
   return (
     <div className="space-y-6">
@@ -47,43 +80,8 @@ function Finance() {
         <StatCard label="Total recebido" value={brl(received)} />
         <StatCard label="Em aberto" value={brl(open.reduce((s, i) => s + Number(i.amount), 0))} hint={`${open.length} fatura(s)`} />
       </div>
-      <Panel title="Faturas" action={<Badge variant="outline" className={data?.billingOn ? "border-success text-success" : "border-warning text-warning"}>Cobrança automática {data?.billingOn ? "ligada" : "desligada"}</Badge>}>
-        {invoices.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma fatura. Ative a cobrança dos projetos e gere as faturas do mês.</p> : (
-          <ul className="divide-y divide-border">
-            {invoices.map((i: any) => {
-              const overdue = i.status === "pending" && i.due_date < today;
-              return (
-                <li key={i.id} className="flex flex-wrap items-center gap-3 py-3 text-sm">
-                  <div className="min-w-48 flex-1"><p className="font-medium">{i.project?.name}</p><p className="text-xs text-muted-foreground">{i.project?.client?.full_name || i.project?.client?.email}</p></div>
-                  <span className="font-mono text-muted-foreground">{new Date(i.due_date + "T12:00:00").toLocaleDateString("pt-BR")}</span>
-                  <span className="w-28 text-right font-mono">{brl(Number(i.amount))}</span>
-                  <Badge variant="outline" className={i.status === "paid" ? "border-success text-success" : overdue ? "border-danger text-danger" : "border-warning text-warning"}>
-                    {i.status === "paid" ? "Pago" : overdue ? "Vencida" : "A vencer"}
-                  </Badge>
-                  {isOwner && i.status === "pending" && (
-                    <Button size="sm" variant="outline" disabled={sending === i.id} onClick={async () => {
-                      if (!window.confirm(`Enviar a fatura de ${i.project?.name} agora para ${i.project?.client?.email ?? "o cliente"}?`)) return;
-                      setSending(i.id);
-                      try { await sendInvoiceNow({ data: { invoiceId: i.id } }); toast.success("Fatura enviada ao cliente"); }
-                      catch (e) { toast.error(e instanceof Error ? e.message : "Não foi possível enviar a fatura"); }
-                      finally { setSending(null); }
-                    }}><Send className="h-4 w-4" /> {sending === i.id ? "Enviando…" : "Enviar fatura"}</Button>
-                  )}
-                  {isOwner && i.status === "pending" && (
-                    <Button size="sm" variant="secondary" onClick={async () => {
-                      const { error } = await supabase.from("invoices").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", i.id);
-                      if (error) return toast.error(error.message);
-                      toast.success("Baixa registrada"); qc.invalidateQueries({ queryKey: ["finance"] });
-                      notifyInvoicePaid({ data: { invoiceId: i.id } })
-                        .then((r) => r.sent && toast.success("Agradecimento enviado ao cliente"))
-                        .catch(() => toast.error("Baixa feita, mas o e-mail de agradecimento falhou"));
-                    }}><CheckCircle2 className="h-4 w-4" /> Marcar pago</Button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+      <Panel title="Clientes e faturas" action={<Badge variant="outline" className={data?.billingOn ? "border-success text-success" : "border-warning text-warning"}>Cobrança automática {data?.billingOn ? "ligada" : "desligada"}</Badge>}>
+        <FinanceClients rows={rows} actions={{ isOwner, sendingClient, sendingInvoice, onSendClient: sendClient, onSendInvoice: sendOne, onMarkPaid: markPaid }} />
       </Panel>
       <Panel title="Dados de pagamento">
         <p className="text-sm text-muted-foreground">Chave PIX (e-mail): <span className="font-mono text-foreground">{PIX_KEY}</span> — em nome da responsável legal da Synex Digital Presence.</p>
