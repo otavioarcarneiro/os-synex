@@ -89,7 +89,19 @@ function Projects() {
                   {p.kind === "site" && <Button size="sm" variant="ghost" onClick={() => check(p.id)}><RefreshCw className="h-4 w-4" /></Button>}
                   {p.kind === "site" && <Button size="sm" variant="ghost" onClick={() => setAnalyticsFor(p.id)}><ChartColumn className="h-4 w-4" /> Analytics</Button>}
                   {canWrite && <Button size="sm" variant="ghost" title="Editar projeto" aria-label="Editar projeto" onClick={() => setEditFor(p.id)}><Pencil className="h-4 w-4" /></Button>}
-                  <Button size="sm" variant="ghost" onClick={() => setDocsFor(p.id)}><FileText className="h-4 w-4" /> Docs</Button>
+                  <Button
+  size="sm"
+  variant="ghost"
+  onClick={() => {
+    if (p.google_drive_url) {
+      window.open(p.google_drive_url, "_blank", "noopener,noreferrer");
+    } else {
+      toast.info("Link do Google Drive não cadastrado.");
+    }
+  }}
+>
+  <FileText className="h-4 w-4" /> Docs
+</Button>
                 </td>
               </tr>
             ))}
