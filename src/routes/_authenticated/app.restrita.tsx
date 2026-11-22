@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, KeyRound, Lock, ShieldCheck, UserPlus, Trash2 } from "lucide-react";
+import { ArrowLeft, KeyRound, Lock, ShieldCheck, UserPlus, Trash2, Loader2, CheckCircle2, AlertTriangle, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe, ROLE_LABEL, DEPT_LABEL, type Role } from "@/hooks/use-me";
-import { changePin, createUser, sudoStatus, userAction, verifySudo } from "@/lib/admin.functions";
+import { changePin, createUser, sudoStatus, testUptimeRobotConnection, userAction, verifySudo } from "@/lib/admin.functions";
 import { PageTitle, Panel } from "@/components/synex/ui-bits";
 import { ReasonDialog } from "@/components/synex/reason-dialog";
 import { UserAvatar } from "@/components/synex/user-menu";
@@ -36,6 +36,7 @@ function Restricted() {
       <PageTitle title="Área Restrita" subtitle="Governança da Synex. A sessão restrita expira em 15 minutos."
         action={<Button variant="ghost" onClick={() => { sessionStorage.removeItem(SUDO); navigate({ to: "/app" }); }}><ArrowLeft className="h-4 w-4" /> Voltar</Button>} />
       <Toggles />
+      <UptimeRobotPanel />
       <Users />
       <Audit />
       <PinChange />
@@ -97,6 +98,23 @@ function Toggles() {
           </li>
         ))}
       </ul>
+    </Panel>
+  );
+}
+
+function UptimeRobotPanel() {
+  const [state, setState] = useState<{ kind: "idle" } | { kind: "loading" } | { kind: "ok"; count: number } | { kind: "error"; message: string }>({ kind: "idle" });
+  const run = async () => {
+    setState({ kind: "loading" });
+    try { const r = await testUptimeRobotConnection(); setState({ kind: "ok", count: r.monitorCount }); }
+    catch (e) { setState({ kind: "error", message: e instanceof Error ? e.message : "Falha ao conectar ao UptimeRobot." }); }
+  };
+  const loading = state.kind === "loading";
+  return (
+    <Panel title="Integração UptimeRobot" action={<Button size="sm" onClick={run} disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}{loading ? "Testando..." : "Testar conexão"}</Button>}>
+      <p className="text-sm text-muted-foreground">Serviço externo que fará o monitoramento dos sites dos clientes. A chave de acesso fica guardada no servidor e nunca é exibida aqui.</p>
+      {state.kind === "ok" && <p className="mt-3 flex items-center gap-2 rounded-lg bg-success/10 p-3 text-sm text-success"><CheckCircle2 className="h-4 w-4" /> Conexão estabelecida · {state.count} {state.count === 1 ? "monitor encontrado" : "monitores encontrados"}.</p>}
+      {state.kind === "error" && <p className="mt-3 flex items-center gap-2 rounded-lg bg-danger/10 p-3 text-sm text-danger"><AlertTriangle className="h-4 w-4" /> {state.message}</p>}
     </Panel>
   );
 }

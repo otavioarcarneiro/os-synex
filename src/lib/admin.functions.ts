@@ -188,6 +188,31 @@ export const checkUptimeNow = createServerFn({ method: "POST" })
     return runUptimeCheck((projects ?? []).map((project) => project.id));
   });
 
+// Teste de conexão com o UptimeRobot (somente proprietário). Nunca retorna chave, headers ou corpo bruto.
+const UPTIMEROBOT_SAFE_MESSAGES: Record<string, string> = {
+  missing_key: "Chave da API do UptimeRobot não configurada.",
+  timeout: "O UptimeRobot demorou para responder. Tente novamente.",
+  network: "Não foi possível alcançar o UptimeRobot. Tente novamente.",
+  unauthorized: "A chave da API do UptimeRobot foi recusada.",
+  rate_limited: "Limite de requisições do UptimeRobot atingido. Aguarde um minuto e tente novamente.",
+  http_error: "O UptimeRobot retornou um erro. Tente novamente.",
+  invalid_response: "Resposta inválida do UptimeRobot.",
+};
+export const testUptimeRobotConnection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertOwner(context);
+    const { listMonitors, UptimeRobotError } = await import("@/lib/uptimerobot.server");
+    try {
+      const page = await listMonitors();
+      return { ok: true as const, monitorCount: page.data.length };
+    } catch (e) {
+      const code = e instanceof UptimeRobotError ? e.code : "unknown";
+      console.error("[uptimerobot] teste de conexão falhou:", code);
+      throw new Error(UPTIMEROBOT_SAFE_MESSAGES[code] ?? "Falha ao conectar ao UptimeRobot.");
+    }
+  });
+
 // Financeiro
 export const generateMonthInvoices = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
