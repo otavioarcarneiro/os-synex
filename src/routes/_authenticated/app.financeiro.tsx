@@ -124,7 +124,7 @@ function Finance() {
     const monthlyTotal = chosen.reduce((sum, project) => sum + project.fee, 0);
     if (
       !window.confirm(
-        `Registrar como em aberto e enviar a fatura de ${chosen.length} projeto(s), no total de ${brl(monthlyTotal)}, para ${client.name} (${client.email})?\n\nProjetos que já têm fatura neste mês não são duplicados.`,
+        `Registrar como em aberto e enviar a fatura de ${chosen.length} projeto(s), no total de ${brl(monthlyTotal)}, para ${client.name} (${client.email})?\n\nCada confirmação registra novas faturas para os projetos selecionados, mesmo que já existam faturas neste mês.`,
       )
     ) {
       return;
