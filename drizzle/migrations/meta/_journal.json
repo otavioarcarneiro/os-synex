@@ -78,6 +78,13 @@
       "when": 1795366168917,
       "tag": "0010_add_project_google_drive_url",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795461000000,
+      "tag": "0011_add_uptimerobot_fields",
+      "breakpoints": true
     }
   ]
 }
