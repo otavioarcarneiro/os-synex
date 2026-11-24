@@ -25,17 +25,24 @@ function mapMonitorStatus(status: unknown): SynexUptimeStatus | null {
   }
 }
 
-export async function syncUptimeFromUptimeRobot() {
+export async function syncUptimeFromUptimeRobot(projectId?: string) {
   const { supabaseAdmin } = await import(
     "@/integrations/supabase/client.server"
   );
 
   // Consulta somente projetos associados a monitores externos.
-  const { data: projects, error: projectsError } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("projects")
     .select("id, name, external_monitor_id")
     .eq("kind", "site")
     .not("external_monitor_id", "is", null);
+
+  // Quando informado, limita a sincronização ao projeto solicitado.
+  if (projectId) {
+    query = query.eq("id", projectId);
+  }
+
+  const { data: projects, error: projectsError } = await query;
 
   if (projectsError) {
     throw new Error("Não foi possível consultar os projetos monitorados.");
