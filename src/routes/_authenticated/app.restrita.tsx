@@ -5,7 +5,7 @@ import { ArrowLeft, KeyRound, Lock, ShieldCheck, UserPlus, Trash2, Loader2, Chec
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe, ROLE_LABEL, DEPT_LABEL, type Role } from "@/hooks/use-me";
-import { changePin, createUser, sudoStatus, testUptimeRobotConnection, userAction, verifySudo } from "@/lib/admin.functions";
+import { changePin, createUser, sudoStatus, syncUptimeRobotNow, testUptimeRobotConnection, userAction, verifySudo } from "@/lib/admin.functions";
 import { PageTitle, Panel } from "@/components/synex/ui-bits";
 import { ReasonDialog } from "@/components/synex/reason-dialog";
 import { UserAvatar } from "@/components/synex/user-menu";
