@@ -360,6 +360,8 @@ export type Database = {
           client_id: string
           contract_start: string
           created_at: string
+          external_monitor_id: string | null
+          external_synced_at: string | null
           ga4_property_id: string | null
           google_drive_url: string | null
           id: string
@@ -380,6 +382,8 @@ export type Database = {
           client_id: string
           contract_start?: string
           created_at?: string
+          external_monitor_id?: string | null
+          external_synced_at?: string | null
           ga4_property_id?: string | null
           google_drive_url?: string | null
           id?: string
@@ -400,6 +404,8 @@ export type Database = {
           client_id?: string
           contract_start?: string
           created_at?: string
+          external_monitor_id?: string | null
+          external_synced_at?: string | null
           ga4_property_id?: string | null
           google_drive_url?: string | null
           id?: string
