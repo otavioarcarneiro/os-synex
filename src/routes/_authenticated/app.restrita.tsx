@@ -101,23 +101,112 @@ function Toggles() {
     </Panel>
   );
 }
-
 function UptimeRobotPanel() {
-  const [state, setState] = useState<{ kind: "idle" } | { kind: "loading" } | { kind: "ok"; count: number } | { kind: "error"; message: string }>({ kind: "idle" });
-  const run = async () => {
-    setState({ kind: "loading" });
-    try { const r = await testUptimeRobotConnection(); setState({ kind: "ok", count: r.monitorCount }); }
-    catch (e) { setState({ kind: "error", message: e instanceof Error ? e.message : "Falha ao conectar ao UptimeRobot." }); }
+  const [state, setState] = useState<
+    | { kind: "idle" }
+    | { kind: "testing" }
+    | { kind: "syncing" }
+    | { kind: "connection-ok"; count: number }
+    | { kind: "sync-ok"; checked: number; updated: number; skipped: number }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
+
+  const testConnection = async () => {
+    setState({ kind: "testing" });
+
+    try {
+      const r = await testUptimeRobotConnection();
+      setState({ kind: "connection-ok", count: r.monitorCount });
+    } catch (e) {
+      setState({
+        kind: "error",
+        message: e instanceof Error
+          ? e.message
+          : "Falha ao conectar ao UptimeRobot.",
+      });
+    }
   };
-  const loading = state.kind === "loading";
+
+  const syncMonitors = async () => {
+    setState({ kind: "syncing" });
+
+    try {
+      const r = await syncUptimeRobotNow();
+
+      setState({
+        kind: "sync-ok",
+        checked: r.checked,
+        updated: r.updated,
+        skipped: r.skipped,
+      });
+    } catch (e) {
+      setState({
+        kind: "error",
+        message: e instanceof Error
+          ? e.message
+          : "Falha ao sincronizar os monitores do UptimeRobot.",
+      });
+    }
+  };
+
+  const busy = state.kind === "testing" || state.kind === "syncing";
+
   return (
-    <Panel title="Integração UptimeRobot" action={<Button size="sm" onClick={run} disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}{loading ? "Testando..." : "Testar conexão"}</Button>}>
-      <p className="text-sm text-muted-foreground">Serviço externo que fará o monitoramento dos sites dos clientes. A chave de acesso fica guardada no servidor e nunca é exibida aqui.</p>
-      {state.kind === "ok" && <p className="mt-3 flex items-center gap-2 rounded-lg bg-success/10 p-3 text-sm text-success"><CheckCircle2 className="h-4 w-4" /> Conexão estabelecida · {state.count} {state.count === 1 ? "monitor encontrado" : "monitores encontrados"}.</p>}
-      {state.kind === "error" && <p className="mt-3 flex items-center gap-2 rounded-lg bg-danger/10 p-3 text-sm text-danger"><AlertTriangle className="h-4 w-4" /> {state.message}</p>}
+    <Panel
+      title="Integração UptimeRobot"
+      action={
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={testConnection} disabled={busy}>
+            {state.kind === "testing" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Activity className="h-4 w-4" />
+            )}
+            {state.kind === "testing" ? "Testando..." : "Testar conexão"}
+          </Button>
+
+          <Button size="sm" onClick={syncMonitors} disabled={busy}>
+            {state.kind === "syncing" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Activity className="h-4 w-4" />
+            )}
+            {state.kind === "syncing" ? "Sincronizando..." : "Sincronizar agora"}
+          </Button>
+        </div>
+      }
+    >
+      <p className="text-sm text-muted-foreground">
+        Serviço externo responsável pelo monitoramento dos sites dos clientes.
+        A chave de acesso fica guardada no servidor e nunca é exibida aqui.
+      </p>
+
+      {state.kind === "connection-ok" && (
+        <p className="mt-3 flex items-center gap-2 rounded-lg bg-success/10 p-3 text-sm text-success">
+          <CheckCircle2 className="h-4 w-4" />
+          Conexão estabelecida · {state.count}{" "}
+          {state.count === 1 ? "monitor encontrado" : "monitores encontrados"}.
+        </p>
+      )}
+
+      {state.kind === "sync-ok" && (
+        <p className="mt-3 flex items-center gap-2 rounded-lg bg-success/10 p-3 text-sm text-success">
+          <CheckCircle2 className="h-4 w-4" />
+          Sincronização concluída · {state.updated} atualizados,{" "}
+          {state.skipped} ignorados, de {state.checked} verificados.
+        </p>
+      )}
+
+      {state.kind === "error" && (
+        <p className="mt-3 flex items-center gap-2 rounded-lg bg-danger/10 p-3 text-sm text-danger">
+          <AlertTriangle className="h-4 w-4" />
+          {state.message}
+        </p>
+      )}
     </Panel>
   );
 }
+
 
 type UserRow = { id: string; full_name: string; email: string; phone: string | null; avatar_url: string | null; department: "juridico" | "execucao" | null; status: string; created_at: string; role: Role | null };
 
