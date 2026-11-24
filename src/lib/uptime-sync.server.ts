@@ -90,6 +90,8 @@ export async function syncUptimeFromUptimeRobot() {
       .from("projects")
       .update({
         uptime_status: status,
+        uptime_checked_at: syncedAt,
+        uptime_latency_ms: null,
         external_synced_at: syncedAt,
       })
       .eq("id", project.id)
