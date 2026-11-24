@@ -212,7 +212,28 @@ export const testUptimeRobotConnection = createServerFn({ method: "POST" })
       throw new Error(UPTIMEROBOT_SAFE_MESSAGES[code] ?? "Falha ao conectar ao UptimeRobot.");
     }
   });
+// Sincronização manual dos monitores externos (somente proprietário).
+export const syncUptimeRobotNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertOwner(context);
 
+    const { UptimeRobotError } = await import("@/lib/uptimerobot.server");
+    const { syncUptimeFromUptimeRobot } = await import("./uptime-sync.server");
+
+    try {
+      return await syncUptimeFromUptimeRobot();
+    } catch (e) {
+      const code = e instanceof UptimeRobotError ? e.code : "unknown";
+
+      console.error("[uptimerobot] sincronização manual falhou:", code);
+
+      throw new Error(
+        UPTIMEROBOT_SAFE_MESSAGES[code] ??
+          "Não foi possível sincronizar os monitores do UptimeRobot.",
+      );
+    }
+  });
 // Financeiro
 export const generateMonthInvoices = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
