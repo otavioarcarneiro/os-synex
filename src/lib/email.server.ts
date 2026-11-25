@@ -1,3 +1,4 @@
+
 // Envio de e-mails institucionais da Synex via Resend (servidor apenas).
 import { pushToOwners } from "./push.server";
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
@@ -51,6 +52,30 @@ export async function sendDownAlert(p: { name: string; url: string | null }) {
   ], { label: "Abrir Projetos", url: `${APP_URL}/app/projetos` });
   await pushToOwners("uptime_down", { title: "Site fora do ar", body: p.name, url: "/app/projetos" });
   await sendEmail(FROM_UPTIME, OWNER_ALERT_EMAIL, `Queda detectada: ${p.name}`, html);
+}
+
+export async function sendUpAlert(p: { name: string; url: string | null }) {
+  const html = layout("Site recuperado", [
+    `O monitoramento confirmou que <b>${esc(p.name)}</b> voltou a funcionar.`,
+    `Endereço: ${esc(p.url ?? "-")}`,
+    `Horário: ${nowBR()}`,
+  ], {
+    label: "Abrir Projetos",
+    url: `${APP_URL}/app/projetos`,
+  });
+
+  await pushToOwners("uptime_up", {
+    title: "Site voltou ao ar",
+    body: p.name,
+    url: "/app/projetos",
+  });
+
+  await sendEmail(
+    FROM_UPTIME,
+    OWNER_ALERT_EMAIL,
+    `Site recuperado: ${p.name}`,
+    html,
+  );
 }
 
 export async function sendLockAlert(p: { email: string; ip?: string; device?: string; browser?: string; os?: string }) {
