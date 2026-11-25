@@ -1,5 +1,6 @@
 
 import { listMonitors, type UptimeRobotMonitor } from "./uptimerobot.server";
+import { sendDownAlert, sendUpAlert } from "./email.server";
 
 type SynexUptimeStatus = "online" | "warning" | "down" | "unknown";
 
@@ -30,14 +31,12 @@ export async function syncUptimeFromUptimeRobot(projectId?: string) {
     "@/integrations/supabase/client.server"
   );
 
-  // Consulta somente projetos associados a monitores externos.
   let query = supabaseAdmin
     .from("projects")
-    .select("id, name, external_monitor_id")
+    .select("id, name, url, uptime_status, external_monitor_id")
     .eq("kind", "site")
     .not("external_monitor_id", "is", null);
 
-  // Quando informado, limita a sincronização ao projeto solicitado.
   if (projectId) {
     query = query.eq("id", projectId);
   }
@@ -57,7 +56,6 @@ export async function syncUptimeFromUptimeRobot(projectId?: string) {
     };
   }
 
-  // Uma única chamada à API lista todos os monitores.
   const page = await listMonitors();
 
   const monitorsById = new Map<string, UptimeRobotMonitor>(
@@ -68,7 +66,6 @@ export async function syncUptimeFromUptimeRobot(projectId?: string) {
   const results: SyncResult[] = [];
   let skipped = 0;
 
-  // Processamento sequencial para manter as operações controladas.
   for (const project of projects) {
     const monitorId = project.external_monitor_id;
 
@@ -79,7 +76,6 @@ export async function syncUptimeFromUptimeRobot(projectId?: string) {
 
     const monitor = monitorsById.get(monitorId);
 
-    // Monitor ausente na API: não altera o status existente.
     if (!monitor) {
       skipped++;
       continue;
@@ -87,11 +83,12 @@ export async function syncUptimeFromUptimeRobot(projectId?: string) {
 
     const status = mapMonitorStatus(monitor.status);
 
-    // Status desconhecido: não sobrescreve dados válidos.
     if (!status) {
       skipped++;
       continue;
     }
+
+    const previousStatus = project.uptime_status as SynexUptimeStatus | null;
 
     const { error: updateError } = await supabaseAdmin
       .from("projects")
@@ -107,6 +104,26 @@ export async function syncUptimeFromUptimeRobot(projectId?: string) {
     if (updateError) {
       throw new Error(
         `Não foi possível atualizar o monitoramento do projeto ${project.id}.`,
+      );
+    }
+
+    // Alerta somente quando ocorre uma transição real de status.
+    try {
+      if (previousStatus === "online" && status === "down") {
+        await sendDownAlert({
+          name: project.name,
+          url: project.url,
+        });
+      } else if (previousStatus === "down" && status === "online") {
+        await sendUpAlert({
+          name: project.name,
+          url: project.url,
+        });
+      }
+    } catch (alertError) {
+      console.error(
+        `Falha ao enviar alerta de uptime do projeto ${project.id}:`,
+        alertError,
       );
     }
 
