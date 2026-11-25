@@ -86,7 +86,7 @@ function Toggles() {
   const rows = [
     { k: "maintenance_mode", t: "Modo manutenção do CRM", d: "Bloqueia o login de clientes e equipe. Seu acesso continua liberado." },
     { k: "billing_enabled", t: "Cobrança automática", d: "Ativa ou pausa os e-mails de recorrência." },
-    { k: "uptime_enabled", t: "Monitor de uptime", d: "Verificação automática dos sites a cada 30 minutos." },
+    { k: "uptime_enabled", t: "Monitor de uptime", d: "Verificação automática dos sites a cada 5 minutos." },
   ] as const;
   return (
     <Panel title="Controles do sistema">
